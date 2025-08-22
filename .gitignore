@@ -1,0 +1,16 @@
+# IDE/OS
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Dépendances locales éventuelles
+vendor/
+node_modules/
+
+# Caches Moodle (au cas où)
+cache/
+localcache/
+muc/
+temp/
