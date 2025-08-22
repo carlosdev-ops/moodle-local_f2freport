@@ -1,0 +1,27 @@
+<?php
+$string['pluginname'] = 'Face-to-face sessions report';
+$string['trainingreporttitle'] = 'Training sessions';
+$string['trainingreportheading'] = 'Training sessions';
+$string['filtercourse'] = 'Course';
+$string['allcourses'] = 'All courses';
+$string['futureonly'] = 'Show future sessions only';
+$string['filter'] = 'Filter';
+$string['reset'] = 'Reset';
+$string['city'] = 'City';
+$string['venue'] = 'Venue';
+$string['room'] = 'Room';
+$string['timestart'] = 'Start';
+$string['timefinish'] = 'Finish';
+$string['courseid'] = 'Course ID';
+$string['sessionid'] = 'Session ID';
+$string['coursefullname'] = 'Course';
+$string['totalparticipants'] = 'Participants';
+$string['trainer'] = 'Trainer';
+$string['notrainer'] = 'No trainer';
+$string['notspecified'] = 'Not specified';
+$string['invalidcourse'] = 'Invalid course selected. Showing all courses.';
+$string['nosessions'] = 'No sessions to display with current filters.';
+$string['filters'] = 'Filters';
+$string['showingcount'] = 'Showing {$a} session(s)';
+$string['missingfields'] = 'Required custom fields (location/venue/room) were not found. Please check Face-to-face configuration.';
+$string['f2freport:viewreport'] = 'View Face-to-face report';
