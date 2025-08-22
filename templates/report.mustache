@@ -1,0 +1,49 @@
+{{!
+  Template: local_f2freport/report
+  Rôle: conteneur d'interface (titre, filtres, résultats)
+  Variables attendues:
+    - filtershtml (string HTML du moodleform)
+    - hasresults (bool)
+    - columns (array de titres de colonnes - strings)
+    - rows (array d'objets { cells: array })
+}}
+<div class="local_f2freport container py-3">
+  <h2 class="mb-3">{{#str}}reportheading, local_f2freport{{/str}}</h2>
+
+  <section class="card mb-3">
+    <div class="card-body">
+      <h3 class="h5 mb-3">{{#str}}filtersheading, local_f2freport{{/str}}</h3>
+      {{{filtershtml}}}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-body">
+      {{#hasresults}}
+        <div class="table-responsive">
+          <table class="generaltable">
+            <thead>
+              <tr>
+                {{#columns}}<th>{{.}}</th>{{/columns}}
+              </tr>
+            </thead>
+            <tbody>
+              {{#rows}}
+                <tr>
+                  {{#cells}}<td>{{{.}}}</td>{{/cells}}
+                </tr>
+              {{/rows}}
+            </tbody>
+          </table>
+        </div>
+      {{/hasresults}}
+
+      {{^hasresults}}
+        <div class="alert alert-info mb-0">
+          {{#str}}noresults, local_f2freport{{/str}}
+        </div>
+      {{/hasresults}}
+    </div>
+  </section>
+</div>
+

@@ -1,27 +1,16 @@
 <?php
-$string['pluginname'] = 'Rapport des sessions Face-to-face';
-$string['trainingreporttitle'] = 'Sessions de formation';
-$string['trainingreportheading'] = 'Sessions de formation';
-$string['filtercourse'] = 'Cours';
-$string['allcourses'] = 'Tous les cours';
-$string['futureonly'] = 'Afficher seulement les sessions à venir';
-$string['filter'] = 'Filtrer';
-$string['reset'] = 'Réinitialiser';
-$string['city'] = 'Ville';
-$string['venue'] = 'Lieu';
-$string['room'] = 'Salle';
-$string['timestart'] = 'Début';
-$string['timefinish'] = 'Fin';
-$string['courseid'] = 'ID du cours';
-$string['sessionid'] = 'ID de session';
-$string['coursefullname'] = 'Cours';
-$string['totalparticipants'] = 'Participants';
+// lang/fr/local_f2freport.php
+defined('MOODLE_INTERNAL') || die();
+
+$string['pluginname'] = 'Rapport F2F';
+$string['reportheading'] = 'Rapport des sessions de formation';
+$string['filtersheading'] = 'Filtres';
+$string['applyfilters'] = 'Appliquer les filtres';
+$string['resetfilters'] = 'Réinitialiser';
+$string['datefrom'] = 'Date de début';
+$string['dateto'] = 'Date de fin';
 $string['trainer'] = 'Formateur';
-$string['notrainer'] = 'Aucun formateur';
-$string['notspecified'] = 'Non spécifié';
-$string['invalidcourse'] = 'Cours invalide sélectionné. Affichage de tous les cours.';
-$string['nosessions'] = 'Aucune session à afficher avec les filtres actuels.';
-$string['filters'] = 'Filtres';
-$string['showingcount'] = 'Affichage de {$a} session(s)';
-$string['missingfields'] = 'Les champs personnalisés requis (ville/lieu/salle) sont introuvables. Vérifiez la configuration Face-to-face.';
-$string['f2freport:viewreport'] = 'Voir le rapport Face-to-face';
+$string['location'] = 'Lieu';
+$string['noresults'] = 'Aucun résultat pour le moment. Ajustez les filtres puis appliquez.';
+$string['privacy:metadata'] = 'Le plugin Rapport F2F ne stocke aucune donnée personnelle.';
+$string['capability:viewreport'] = 'Voir le rapport F2F';
