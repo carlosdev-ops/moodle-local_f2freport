@@ -6,13 +6,9 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/tablelib.php');
 
 class sessions_table extends \table_sql {
-    /** @var array */
     protected $filters = [];
-    /** @var int|null */
     protected $cityfieldid = null;
-    /** @var int|null */
     protected $venuefieldid = null;
-    /** @var int|null */
     protected $roomfieldid = null;
 
     public function __construct(string $uniqueid, array $filters, array $fieldids) {
@@ -22,22 +18,45 @@ class sessions_table extends \table_sql {
         $this->venuefieldid = $fieldids['venue'] ?? null;
         $this->roomfieldid  = $fieldids['room']  ?? null;
 
-        // Colonnes & en-têtes.
-        $columns = [
-            'courseid', 'sessionid', 'timestart', 'timefinish',
-            'city', 'venue', 'room', 'totalparticipants', 'coursefullname',
+        // Déterminer colonnes/entêtes selon la config admin.
+        $cfg = get_config('local_f2freport') ?: new \stdClass();
+        $allcols = [
+            'courseid'          => get_string('courseid', 'local_f2freport'),
+            'sessionid'         => get_string('sessionid', 'local_f2freport'),
+            'timestart'         => get_string('timestart', 'local_f2freport'),
+            'timefinish'        => get_string('timefinish', 'local_f2freport'),
+            'city'              => get_string('city', 'local_f2freport'),
+            'venue'             => get_string('venue', 'local_f2freport'),
+            'room'              => get_string('room', 'local_f2freport'),
+            'totalparticipants' => get_string('totalparticipants', 'local_f2freport'),
+            'coursefullname'    => get_string('coursefullname', 'local_f2freport'),
         ];
-        $headers = [
-            get_string('courseid', 'local_f2freport'),
-            get_string('sessionid', 'local_f2freport'),
-            get_string('timestart', 'local_f2freport'),
-            get_string('timefinish', 'local_f2freport'),
-            get_string('city', 'local_f2freport'),
-            get_string('venue', 'local_f2freport'),
-            get_string('room', 'local_f2freport'),
-            get_string('totalparticipants', 'local_f2freport'),
-            get_string('coursefullname', 'local_f2freport'),
-        ];
+
+        $enabledkeys = [];
+        if (!empty($cfg->columns)) {
+            if (is_array($cfg->columns)) {
+                // admin_setting_configmulticheckbox → tableau associatif col => 1/0.
+                foreach ($cfg->columns as $k => $v) {
+                    if (!empty($v) && isset($allcols[$k])) {
+                        $enabledkeys[] = $k;
+                    }
+                }
+            } else if (is_string($cfg->columns)) {
+                // fallback si jamais stocké en CSV.
+                foreach (explode(',', $cfg->columns) as $k) {
+                    $k = trim($k);
+                    if ($k !== '' && isset($allcols[$k])) {
+                        $enabledkeys[] = $k;
+                    }
+                }
+            }
+        }
+        if (empty($enabledkeys)) {
+            $enabledkeys = array_keys($allcols); // tout par défaut
+        }
+
+        $columns = $enabledkeys;
+        $headers = array_map(function($k) use ($allcols) { return $allcols[$k]; }, $enabledkeys);
 
         $this->define_columns($columns);
         $this->define_headers($headers);
@@ -45,32 +64,22 @@ class sessions_table extends \table_sql {
         $this->collapsible(false);
         $this->pageable(true);
 
-        // Prépare SQL.
         [$fields, $from, $where, $params, $countsql] = $this->build_sql();
         $this->set_sql($fields, $from, $where, $params);
         $this->set_count_sql($countsql, $params);
     }
 
-    /**
-     * Construit SQL compatible avec les deux schémas F2F :
-     *  - (A) colonnes timestart/timefinish dans facetoface_sessions
-     *  - (B) dates dans facetoface_sessions_dates (agrégation MIN/MAX)
-     */
     protected function build_sql(): array {
         global $DB;
 
-        // Détecte si facetoface_sessions a des colonnes timestart/timefinish.
-        $sessionscols = $DB->get_columns('facetoface_sessions');
+        $sessionscols   = $DB->get_columns('facetoface_sessions');
         $hasdirectdates = isset($sessionscols['timestart']) && isset($sessionscols['timefinish']);
 
-        // Sélecteurs de colonnes pour les filtres/tri.
         $timestartcol  = $hasdirectdates ? 's.timestart'  : 'sd.timestart';
         $timefinishcol = $hasdirectdates ? 's.timefinish' : 'sd.timefinish';
 
-        // Champs retournés (on ALIAS toujours en timestart/timefinish).
-        
         $fields = "
-            s.id AS id,                       -- ← clé unique exigée
+            s.id AS id,
             c.id AS courseid,
             c.fullname AS coursefullname,
             s.id AS sessionid,
@@ -79,10 +88,10 @@ class sessions_table extends \table_sql {
             COALESCE(dcity.data,  :ns_city)   AS city,
             COALESCE(dvenue.data, :ns_venue)  AS venue,
             COALESCE(droom.data,  :ns_room)   AS room,
-            COALESCE(su.participants, 0) AS totalparticipants
+            COALESCE(su.participants, 0) AS totalparticipants,
+            COALESCE(att.presentcount, 0) AS presentcount
         ";
 
-        // FROM + JOINS.
         $from = "
             {facetoface} f
             JOIN {course} c ON c.id = f.course
@@ -90,7 +99,6 @@ class sessions_table extends \table_sql {
         ";
 
         if (!$hasdirectdates) {
-            // Agrégation MIN/MAX sur les dates de la session.
             $from .= "
                 LEFT JOIN (
                     SELECT sessionid, MIN(timestart) AS timestart, MAX(timefinish) AS timefinish
@@ -113,9 +121,20 @@ class sessions_table extends \table_sql {
                   FROM {facetoface_signups}
               GROUP BY sessionid
             ) su ON su.sessionid = s.id
+
+            LEFT JOIN (
+                SELECT fsu.sessionid, COUNT(1) AS presentcount
+                  FROM {facetoface_signups} fsu
+                  JOIN (
+                        SELECT signupid, MAX(id) AS maxid
+                          FROM {facetoface_signups_status}
+                      GROUP BY signupid
+                  ) last ON last.signupid = fsu.id
+                  JOIN {facetoface_signups_status} fss ON fss.id = last.maxid AND fss.statuscode = 100
+              GROUP BY fsu.sessionid
+            ) att ON att.sessionid = s.id
         ";
 
-        // WHERE dynamique.
         $where  = '1=1';
         $params = [
             'ns_city'   => get_string('notspecified', 'local_f2freport'),
@@ -147,7 +166,6 @@ class sessions_table extends \table_sql {
             }
         }
 
-        // COUNT SQL (doit refléter les mêmes joins/where).
         $countfrom = "
             {facetoface} f
             JOIN {course} c ON c.id = f.course
@@ -167,13 +185,12 @@ class sessions_table extends \table_sql {
         return [$fields, $from, $where, $params, $countsql];
     }
 
-    // ──────────────── Formatages des colonnes ────────────────
     public function col_timestart($row): string {
         if (!empty($row->timestart)) {
             return userdate((int)$row->timestart, get_string('strftimedatetime', 'langconfig'));
         }
         return '—';
-        }
+    }
 
     public function col_timefinish($row): string {
         if (!empty($row->timefinish)) {
@@ -185,6 +202,18 @@ class sessions_table extends \table_sql {
     public function col_city($row): string { return format_string($row->city); }
     public function col_venue($row): string { return format_string($row->venue); }
     public function col_room($row): string  { return format_string($row->room); }
-    public function col_totalparticipants($row): string { return (string)((int)$row->totalparticipants); }
+
+    // Affiche "présents / inscrits".
+    public function col_totalparticipants($row): string {
+        $present = (int)($row->presentcount ?? 0);
+        $total   = (int)($row->totalparticipants ?? 0);
+        return $present . ' / ' . $total;
+    }
+
     public function col_coursefullname($row): string { return format_string($row->coursefullname); }
+
+    // Exposé pour 2D.2 (compteur total).
+    public function get_totalrows(): int {
+        return (int)($this->totalrows ?? 0);
+    }
 }

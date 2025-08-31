@@ -18,9 +18,9 @@ $PAGE->set_heading(get_string('trainingreportheading', 'local_f2freport'));
 global $DB;
 
 /**
- * Normalise une valeur issue d'un date_selector :
- * - si array [day,month,year] -> timestamp (00:00:00)
- * - si int -> renvoie tel quel
+ * Normalise un champ date venant de date_selector :
+ * - si array [day,month,year] -> timestamp 00:00
+ * - si int -> int
  * - sinon 0
  */
 function f2f_normalize_date($v): int {
@@ -30,15 +30,36 @@ function f2f_normalize_date($v): int {
     return (int)$v;
 }
 
-// ───── Liste des cours ayant des activités Face-to-face ─────
+/** Parse une liste CSV en tableau (lowercase/trim, vide filtré). */
+function f2f_parse_aliases(?string $csv, array $fallback): array {
+    $csv = trim((string)$csv);
+    if ($csv === '') {
+        return $fallback;
+    }
+    $out = [];
+    foreach (explode(',', $csv) as $token) {
+        $t = core_text::strtolower(trim($token));
+        if ($t !== '') { $out[] = $t; }
+    }
+    return array_values(array_unique($out));
+}
+
+// ───── Config plugin ─────
+$cfg = get_config('local_f2freport') ?: new stdClass();
+$pagesize = !empty($cfg->pagesize) ? max(1, (int)$cfg->pagesize) : 25;
+$aliases = [
+    'city'  => f2f_parse_aliases($cfg->aliases_city  ?? '', ['city','ville','location']),
+    'venue' => f2f_parse_aliases($cfg->aliases_venue ?? '', ['venue','lieu','building','site','centre','center','campus']),
+    'room'  => f2f_parse_aliases($cfg->aliases_room  ?? '', ['room','salle','classroom','roomnumber']),
+];
+
+// ───── Liste des cours ayant des activités F2F ─────
 $courseoptions = [0 => get_string('allcourses', 'local_f2freport')];
 $facetomodid = $DB->get_field('modules', 'id', ['name' => 'facetoface'], IGNORE_MISSING);
 if ($facetomodid) {
     $cms = $DB->get_records('course_modules', ['module' => $facetomodid], '', 'id, course');
     if ($cms) {
-        $courseids = array_values(array_unique(array_map(function($cm) {
-            return (int)$cm->course;
-        }, $cms)));
+        $courseids = array_values(array_unique(array_map(function($cm){ return (int)$cm->course; }, $cms)));
         if (!empty($courseids)) {
             list($insql, $inparams) = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED);
             $courses = $DB->get_records_select_menu('course', "id $insql", $inparams, 'fullname ASC', 'id, fullname');
@@ -49,34 +70,46 @@ if ($facetomodid) {
     }
 }
 
-// ───── IDs des champs de session (city/venue/room) — FR/EN + alias (location, …) ─────
+// ───── IDs des champs de session (city/venue/room) via alias ─────
 $fieldids = ['city' => null, 'venue' => null, 'room' => null];
 if ($DB->get_manager()->table_exists('facetoface_session_field')) {
     $fields = $DB->get_records('facetoface_session_field', null, '', 'id, shortname, name');
-
-    // Correspondances exactes en priorité, puis partielles.
-    $candidates = [
-        'city'  => ['city', 'ville', 'location'],
-        'venue' => ['venue', 'lieu', 'building', 'site', 'centre', 'center', 'campus'],
-        'room'  => ['room', 'salle', 'classroom', 'roomnumber'],
-    ];
-
     foreach ($fields as $f) {
         $sn = core_text::strtolower(trim($f->shortname ?? ''));
         $nm = core_text::strtolower(trim($f->name ?? ''));
-        foreach ($candidates as $key => $list) {
-            if (!empty($fieldids[$key])) {
-                continue; // déjà trouvé
+        // City
+        if ($fieldids['city'] === null) {
+            if (in_array($sn, $aliases['city'], true) || in_array($nm, $aliases['city'], true)) {
+                $fieldids['city'] = (int)$f->id;
+            } else {
+                foreach ($aliases['city'] as $needle) {
+                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
+                        $fieldids['city'] = (int)$f->id; break;
+                    }
+                }
             }
-            if (in_array($sn, $list, true) || in_array($nm, $list, true)) {
-                $fieldids[$key] = (int)$f->id;
-                continue;
+        }
+        // Venue
+        if ($fieldids['venue'] === null) {
+            if (in_array($sn, $aliases['venue'], true) || in_array($nm, $aliases['venue'], true)) {
+                $fieldids['venue'] = (int)$f->id;
+            } else {
+                foreach ($aliases['venue'] as $needle) {
+                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
+                        $fieldids['venue'] = (int)$f->id; break;
+                    }
+                }
             }
-            foreach ($list as $needle) {
-                if (($sn !== '' && strpos($sn, $needle) !== false) ||
-                    ($nm !== '' && strpos($nm, $needle) !== false)) {
-                    $fieldids[$key] = (int)$f->id;
-                    break;
+        }
+        // Room
+        if ($fieldids['room'] === null) {
+            if (in_array($sn, $aliases['room'], true) || in_array($nm, $aliases['room'], true)) {
+                $fieldids['room'] = (int)$f->id;
+            } else {
+                foreach ($aliases['room'] as $needle) {
+                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
+                        $fieldids['room'] = (int)$f->id; break;
+                    }
                 }
             }
         }
@@ -87,31 +120,22 @@ if ($DB->get_manager()->table_exists('facetoface_session_field')) {
 $customdata  = ['courseoptions' => $courseoptions];
 $form        = new report_filter_form($PAGE->url, $customdata);
 
-// Bouton "Réinitialiser"
+// Reset
 if (optional_param('resetbutton', null, PARAM_RAW) !== null) {
     redirect($PAGE->url);
 }
 
-// ───── Lecture des filtres (dates possibles en tableau via date_selector) ─────
+// Lecture des filtres (dates peuvent arriver en array)
 $courseid   = optional_param('courseid', 0, PARAM_INT);
 $futureonly = (bool)optional_param('futureonly', 0, PARAM_BOOL);
 
-// Les dates peuvent arriver en array lors de la soumission du form.
 $datefromarr = optional_param_array('datefrom', null, PARAM_INT);
 $datetoarr   = optional_param_array('dateto',   null, PARAM_INT);
 
-if (is_array($datefromarr)) {
-    $datefrom = f2f_normalize_date($datefromarr);
-} else {
-    $datefrom = optional_param('datefrom', 0, PARAM_INT); // scalaire (timestamp) depuis l’URL
-}
-if (is_array($datetoarr)) {
-    $dateto = f2f_normalize_date($datetoarr);
-} else {
-    $dateto = optional_param('dateto', 0, PARAM_INT); // scalaire (timestamp) depuis l’URL
-}
+$datefrom = is_array($datefromarr) ? f2f_normalize_date($datefromarr) : optional_param('datefrom', 0, PARAM_INT);
+$dateto   = is_array($datetoarr)   ? f2f_normalize_date($datetoarr)   : optional_param('dateto',   0, PARAM_INT);
 
-// Préremplir le form (toujours des scalaires)
+// Préremplissage form
 $form->set_data([
     'courseid'   => $courseid,
     'datefrom'   => $datefrom ?: null,
@@ -129,27 +153,30 @@ $filters = [
 // ───── Table paginée + tri ─────
 $table = new sessions_table('local_f2freport_sessions', $filters, $fieldids);
 
-// Base URL propre (ne mettre que des scalaires non vides)
+// Base URL propre
 $params = [];
-if (!empty($courseid))   { $params['courseid']   = $courseid; }
-if (!empty($datefrom))   { $params['datefrom']   = $datefrom; }
-if (!empty($dateto))     { $params['dateto']     = $dateto; }
+if (!empty($courseid))   { $params['courseid'] = $courseid; }
+if (!empty($datefrom))   { $params['datefrom'] = $datefrom; }
+if (!empty($dateto))     { $params['dateto']   = $dateto; }
 if (!empty($futureonly)) { $params['futureonly'] = 1; }
 
 $baseurl = new moodle_url('/local/f2freport/report.php', $params);
 $table->define_baseurl($baseurl);
 
-$pagesize = 25;
+// Rendu
 ob_start();
 $table->out($pagesize, false);
 $tablehtml = ob_get_clean();
 
-// Contexte pour Mustache
+// Compteur 2D.2
+$totalrows    = $table->get_totalrows();
+$countsummary = get_string('showingcount', 'local_f2freport', $totalrows);
+
 $templatectx = [
     'filtershtml'  => $form->render(),
     'tablehtml'    => $tablehtml,
     'hasresults'   => (trim($tablehtml) !== '' && strpos($tablehtml, 'generaltable') !== false),
-    'countsummary' => null,
+    'countsummary' => $countsummary,
 ];
 
 echo $OUTPUT->header();

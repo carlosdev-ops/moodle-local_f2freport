@@ -25,5 +25,17 @@ $string['filters'] = 'Filters';
 $string['showingcount'] = 'Showing {$a} session(s)';
 $string['missingfields'] = 'Required custom fields (location/venue/room) were not found. Please check Face-to-face configuration.';
 $string['f2freport:viewreport'] = 'View Face-to-face report';
-$string['datefrom'] = 'From date';
-$string['dateto']   = 'To date';
+
+// Settings (new).
+$string['settings_columns'] = 'Columns to display';
+$string['settings_columns_desc'] = 'Select which columns will be shown in the sessions table.';
+$string['settings_aliases_city'] = 'City field aliases';
+$string['settings_aliases_city_desc'] = 'Comma-separated shortnames/names treated as “City” (e.g., city, ville, location).';
+$string['settings_aliases_venue'] = 'Venue field aliases';
+$string['settings_aliases_venue_desc'] = 'Comma-separated shortnames/names treated as “Venue” (e.g., venue, lieu, building, site, centre, center, campus).';
+$string['settings_aliases_room'] = 'Room field aliases';
+$string['settings_aliases_room_desc'] = 'Comma-separated shortnames/names treated as “Room” (e.g., room, salle, classroom, roomnumber).';
+$string['settings_pagesize'] = 'Rows per page';
+$string['settings_pagesize_desc'] = 'Default number of rows displayed per page (e.g., 25).';
+$string['datefrom'] = 'Start date';
+$string['dateto'] = 'End date';

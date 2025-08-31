@@ -25,5 +25,17 @@ $string['filters'] = 'Filtres';
 $string['showingcount'] = 'Affichage de {$a} session(s)';
 $string['missingfields'] = 'Les champs personnalisés requis (ville/lieu/salle) sont introuvables. Vérifiez la configuration Face-to-face.';
 $string['f2freport:viewreport'] = 'Voir le rapport Face-to-face';
+
+// Paramètres (nouveaux).
+$string['settings_columns'] = 'Colonnes à afficher';
+$string['settings_columns_desc'] = 'Sélectionnez les colonnes à afficher dans le tableau des sessions.';
+$string['settings_aliases_city'] = 'Alias du champ « Ville »';
+$string['settings_aliases_city_desc'] = 'Liste des shortnames/noms reconnus comme “Ville” (séparés par des virgules, ex. city, ville, location).';
+$string['settings_aliases_venue'] = 'Alias du champ « Lieu »';
+$string['settings_aliases_venue_desc'] = 'Liste des shortnames/noms reconnus comme “Lieu” (séparés par des virgules, ex. venue, lieu, building, site, centre, center, campus).';
+$string['settings_aliases_room'] = 'Alias du champ « Salle »';
+$string['settings_aliases_room_desc'] = 'Liste des shortnames/noms reconnus comme “Salle” (séparés par des virgules, ex. room, salle, classroom, roomnumber).';
+$string['settings_pagesize'] = 'Lignes par page';
+$string['settings_pagesize_desc'] = 'Nombre de lignes affichées par page (par défaut : 25).';
 $string['datefrom'] = 'Date de début';
-$string['dateto']   = 'Date de fin';
+$string['dateto'] = 'Date de fin';

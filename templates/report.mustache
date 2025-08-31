@@ -1,37 +1,47 @@
 {{!
-  Template: local_f2freport/report
-  Compatible with original lang keys (3.11 + Moove)
-  Expects:
-    - filtershtml (HTML from moodleform)
-    - tablehtml (HTML from table_sql)
-    - hasresults (bool)
-    - countsummary (string, e.g., "Showing 5 session(s)")
+  template: local_f2freport/report
+  Contexte attendu :
+    - filtershtml   : HTML du moodleform (filtres)
+    - countsummary  : texte i18n “showingcount” (optionnel)
+    - hasresults    : booléen
+    - tablehtml     : HTML de la table (table_sql)
 }}
-<div class="local_f2freport container py-3">
-  <h2 class="mb-3">{{#str}}trainingreportheading, local_f2freport{{/str}}</h2>
 
-  <section class="card mb-3">
-    <div class="card-body">
-      <h3 class="h5 mb-3">{{#str}}filters, local_f2freport{{/str}}</h3>
-      {{{filtershtml}}}
-    </div>
-  </section>
+<div class="local-f2freport container-fluid">
+  <div class="row">
+    <!-- largeur centrée : ~colonne large mais pas plein écran -->
+    <div class="col-xl-10 col-lg-11 mx-auto">
 
-  <section class="card">
-    <div class="card-body">
-      {{#hasresults}}
-        {{#countsummary}}
-          <div class="alert alert-info mb-3">{{{countsummary}}}</div>
-        {{/countsummary}}
-        {{{tablehtml}}}
-      {{/hasresults}}
-
-      {{^hasresults}}
-        <div class="alert alert-info mb-0">
-          {{#str}}nosessions, local_f2freport{{/str}}
+      <!-- Carte des filtres -->
+      <div class="card mb-3">
+        <div class="card-header">
+          {{#str}} filters, local_f2freport {{/str}}
         </div>
-      {{/hasresults}}
-    </div>
-  </section>
-</div>
+        <div class="card-body">
+          {{{filtershtml}}}
+        </div>
+      </div>
 
+      <!-- Compteur -->
+      {{#countsummary}}
+      <div class="alert alert-info py-2 mb-3">{{countsummary}}</div>
+      {{/countsummary}}
+
+      <!-- Résultats -->
+      <div class="results">
+        {{#hasresults}}
+          <div class="table-responsive">
+            {{{tablehtml}}}
+          </div>
+        {{/hasresults}}
+
+        {{^hasresults}}
+          <div class="alert alert-info mb-0">
+            {{#str}} nosessions, local_f2freport {{/str}}
+          </div>
+        {{/hasresults}}
+      </div>
+
+    </div>
+  </div>
+</div>
