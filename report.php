@@ -1,184 +1,95 @@
 <?php
-// local/f2freport/report.php
-require(__DIR__ . '/../../config.php');
+// Ce fichier fait partie du plugin local_f2freport.
+// Contrôle & présentation uniquement (pas de logique métier ici).
 
-use local_f2freport\form\report_filter_form;
-use local_f2freport\table\sessions_table;
+require_once(__DIR__ . '/../../config.php');
+
+require_login();
 
 $context = context_system::instance();
-require_login();
-require_capability('local/f2freport:viewreport', $context);
+require_capability('local/f2freport:view', $context);
 
+// URL de base (sans paramètres).
+$url = new moodle_url('/local/f2freport/report.php');
+
+$PAGE->set_url($url);
 $PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/local/f2freport/report.php'));
 $PAGE->set_pagelayout('report');
-$PAGE->set_title(get_string('trainingreporttitle', 'local_f2freport'));
-$PAGE->set_heading(get_string('trainingreportheading', 'local_f2freport'));
+$PAGE->set_title(get_string('pluginname', 'local_f2freport'));
+$PAGE->set_heading(get_string('report_heading', 'local_f2freport'));
 
-global $DB;
+// Espace de session pour persister les filtres (compatible pagination/tri en POST).
+global $SESSION, $DB;
 
-/**
- * Normalise un champ date venant de date_selector :
- * - si array [day,month,year] -> timestamp 00:00
- * - si int -> int
- * - sinon 0
- */
-function f2f_normalize_date($v): int {
-    if (is_array($v) && isset($v['day'], $v['month'], $v['year'])) {
-        return make_timestamp((int)$v['year'], (int)$v['month'], (int)$v['day'], 0, 0, 0);
-    }
-    return (int)$v;
+if (!isset($SESSION->local_f2freport)) {
+    $SESSION->local_f2freport = new stdClass();
+}
+if (!isset($SESSION->local_f2freport->filters)) {
+    $SESSION->local_f2freport->filters = new stdClass();
 }
 
-/** Parse une liste CSV en tableau (lowercase/trim, vide filtré). */
-function f2f_parse_aliases(?string $csv, array $fallback): array {
-    $csv = trim((string)$csv);
-    if ($csv === '') {
-        return $fallback;
-    }
-    $out = [];
-    foreach (explode(',', $csv) as $token) {
-        $t = core_text::strtolower(trim($token));
-        if ($t !== '') { $out[] = $t; }
-    }
-    return array_values(array_unique($out));
+// Réinitialisation explicite.
+if (optional_param('resetfilters', 0, PARAM_BOOL)) {
+    $SESSION->local_f2freport->filters = new stdClass();
+    redirect($url);
 }
 
-// ───── Config plugin ─────
+// Formulaire (POST par défaut).
+$mform = new \local_f2freport\form\filter_form();
+
+// Valeurs par défaut récupérées de la session.
+$defaults = clone($SESSION->local_f2freport->filters);
+$mform->set_data($defaults);
+
+// Si soumis et valide → on enregistre en session.
+if ($mform->is_submitted() && $mform->is_validated()) {
+    $data = $mform->get_data();
+    $filters = (object)[
+        'datefrom'   => !empty($data->datefrom) ? (int)$data->datefrom : null,
+        'dateto'     => !empty($data->dateto) ? (int)$data->dateto : null,
+        'location'   => !empty($data->location) ? trim($data->location) : null,
+        'trainerids' => (!empty($data->trainerids) && is_array($data->trainerids)) ? array_map('intval', $data->trainerids) : [],
+        'status'     => isset($data->status) ? (string)$data->status : '',
+    ];
+    $SESSION->local_f2freport->filters = $filters;
+} else {
+    // Sinon, on lit ce qu’on a en session (ou vide).
+    $filters = isset($SESSION->local_f2freport->filters) ? $SESSION->local_f2freport->filters : (object)[
+        'datefrom' => null, 'dateto' => null, 'location' => null, 'trainerids' => [], 'status' => ''
+    ];
+}
+
+// Récupération des fieldids (aliases éventuels) pour city/venue/room (F2F).
 $cfg = get_config('local_f2freport') ?: new stdClass();
-$pagesize = !empty($cfg->pagesize) ? max(1, (int)$cfg->pagesize) : 25;
-$aliases = [
-    'city'  => f2f_parse_aliases($cfg->aliases_city  ?? '', ['city','ville','location']),
-    'venue' => f2f_parse_aliases($cfg->aliases_venue ?? '', ['venue','lieu','building','site','centre','center','campus']),
-    'room'  => f2f_parse_aliases($cfg->aliases_room  ?? '', ['room','salle','classroom','roomnumber']),
+$aliascity  = !empty($cfg->alias_city)  ? $cfg->alias_city  : 'city';
+$aliasvenue = !empty($cfg->alias_venue) ? $cfg->alias_venue : 'venue';
+$aliasroom  = !empty($cfg->alias_room)  ? $cfg->alias_room  : 'room';
+
+$fieldids = [
+    'city'  => (int)($DB->get_field('facetoface_session_field', 'id', ['shortname' => $aliascity],  IGNORE_MISSING) ?: 0),
+    'venue' => (int)($DB->get_field('facetoface_session_field', 'id', ['shortname' => $aliasvenue], IGNORE_MISSING) ?: 0),
+    'room'  => (int)($DB->get_field('facetoface_session_field', 'id', ['shortname' => $aliasroom],  IGNORE_MISSING) ?: 0),
 ];
 
-// ───── Liste des cours ayant des activités F2F ─────
-$courseoptions = [0 => get_string('allcourses', 'local_f2freport')];
-$facetomodid = $DB->get_field('modules', 'id', ['name' => 'facetoface'], IGNORE_MISSING);
-if ($facetomodid) {
-    $cms = $DB->get_records('course_modules', ['module' => $facetomodid], '', 'id, course');
-    if ($cms) {
-        $courseids = array_values(array_unique(array_map(function($cm){ return (int)$cm->course; }, $cms)));
-        if (!empty($courseids)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED);
-            $courses = $DB->get_records_select_menu('course', "id $insql", $inparams, 'fullname ASC', 'id, fullname');
-            foreach ($courses as $cid => $cname) {
-                $courseoptions[(int)$cid] = format_string($cname);
-            }
-        }
-    }
+// Table.
+$tableclass = '\\local_f2freport\\table\\sessions_table';
+if (!class_exists($tableclass)) {
+    throw new moodle_exception('errortablenotfound', 'local_f2freport');
 }
+$table = new $tableclass('f2f_sessions', (array)$filters, $fieldids);
 
-// ───── IDs des champs de session (city/venue/room) via alias ─────
-$fieldids = ['city' => null, 'venue' => null, 'room' => null];
-if ($DB->get_manager()->table_exists('facetoface_session_field')) {
-    $fields = $DB->get_records('facetoface_session_field', null, '', 'id, shortname, name');
-    foreach ($fields as $f) {
-        $sn = core_text::strtolower(trim($f->shortname ?? ''));
-        $nm = core_text::strtolower(trim($f->name ?? ''));
-        // City
-        if ($fieldids['city'] === null) {
-            if (in_array($sn, $aliases['city'], true) || in_array($nm, $aliases['city'], true)) {
-                $fieldids['city'] = (int)$f->id;
-            } else {
-                foreach ($aliases['city'] as $needle) {
-                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
-                        $fieldids['city'] = (int)$f->id; break;
-                    }
-                }
-            }
-        }
-        // Venue
-        if ($fieldids['venue'] === null) {
-            if (in_array($sn, $aliases['venue'], true) || in_array($nm, $aliases['venue'], true)) {
-                $fieldids['venue'] = (int)$f->id;
-            } else {
-                foreach ($aliases['venue'] as $needle) {
-                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
-                        $fieldids['venue'] = (int)$f->id; break;
-                    }
-                }
-            }
-        }
-        // Room
-        if ($fieldids['room'] === null) {
-            if (in_array($sn, $aliases['room'], true) || in_array($nm, $aliases['room'], true)) {
-                $fieldids['room'] = (int)$f->id;
-            } else {
-                foreach ($aliases['room'] as $needle) {
-                    if (($sn !== '' && strpos($sn, $needle) !== false) || ($nm !== '' && strpos($nm, $needle) !== false)) {
-                        $fieldids['room'] = (int)$f->id; break;
-                    }
-                }
-            }
-        }
-    }
-}
+// Base URL SANS paramètres (comme avant) → tri/pagination restent propres.
+// Les filtres viennent de la SESSION, donc pas besoin de query params.
+$table->define_baseurl($url);
 
-// ───── Formulaire des filtres ─────
-$customdata  = ['courseoptions' => $courseoptions];
-$form        = new report_filter_form($PAGE->url, $customdata);
+// Page size depuis réglages (fallback 50).
+$pagesize = (int)(get_config('local_f2freport', 'pagesize') ?? 50);
+if ($pagesize <= 0) { $pagesize = 50; }
 
-// Reset
-if (optional_param('resetbutton', null, PARAM_RAW) !== null) {
-    redirect($PAGE->url);
-}
-
-// Lecture des filtres (dates peuvent arriver en array)
-$courseid   = optional_param('courseid', 0, PARAM_INT);
-$futureonly = (bool)optional_param('futureonly', 0, PARAM_BOOL);
-
-$datefromarr = optional_param_array('datefrom', null, PARAM_INT);
-$datetoarr   = optional_param_array('dateto',   null, PARAM_INT);
-
-$datefrom = is_array($datefromarr) ? f2f_normalize_date($datefromarr) : optional_param('datefrom', 0, PARAM_INT);
-$dateto   = is_array($datetoarr)   ? f2f_normalize_date($datetoarr)   : optional_param('dateto',   0, PARAM_INT);
-
-// Préremplissage form
-$form->set_data([
-    'courseid'   => $courseid,
-    'datefrom'   => $datefrom ?: null,
-    'dateto'     => $dateto   ?: null,
-    'futureonly' => $futureonly ? 1 : 0,
-]);
-
-$filters = [
-    'courseid'   => $courseid,
-    'datefrom'   => $datefrom ?: null,
-    'dateto'     => $dateto   ?: null,
-    'futureonly' => $futureonly,
-];
-
-// ───── Table paginée + tri ─────
-$table = new sessions_table('local_f2freport_sessions', $filters, $fieldids);
-
-// Base URL propre
-$params = [];
-if (!empty($courseid))   { $params['courseid'] = $courseid; }
-if (!empty($datefrom))   { $params['datefrom'] = $datefrom; }
-if (!empty($dateto))     { $params['dateto']   = $dateto; }
-if (!empty($futureonly)) { $params['futureonly'] = 1; }
-
-$baseurl = new moodle_url('/local/f2freport/report.php', $params);
-$table->define_baseurl($baseurl);
-
-// Rendu
-ob_start();
-$table->out($pagesize, false);
-$tablehtml = ob_get_clean();
-
-// Compteur 2D.2
-$totalrows    = $table->get_totalrows();
-$countsummary = get_string('showingcount', 'local_f2freport', $totalrows);
-
-$templatectx = [
-    'filtershtml'  => $form->render(),
-    'tablehtml'    => $tablehtml,
-    'hasresults'   => (trim($tablehtml) !== '' && strpos($tablehtml, 'generaltable') !== false),
-    'countsummary' => $countsummary,
-];
-
+// Rendu.
 echo $OUTPUT->header();
-echo $OUTPUT->render_from_template('local_f2freport/report', $templatectx);
+echo $OUTPUT->heading(get_string('report_title', 'local_f2freport'), 3);
+
+$mform->display();           // Formulaire (POST)
+$table->out($pagesize, true); // Tableau avec pagination/tri
 echo $OUTPUT->footer();

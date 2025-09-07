@@ -4,23 +4,24 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'local_f2freport';
 
 // Version du plugin : Format YYYYMMDDXX 
-$plugin->version = 2025080500;
+// ⚠️ Incrémentée pour forcer l'upgrade et enregistrer la nouvelle capability.
+$plugin->version = 2025090600;  
 
-// Version minimum de Moodle requise
-$plugin->requires = 2023042400; // Moodle 4.2.0
+// Version minimum de Moodle requise (ici Moodle 4.2.0)
+$plugin->requires = 2023042400;
 
 // Niveau de maturité du plugin
 $plugin->maturity = MATURITY_STABLE;
 
 // Version de release (format sémantique)
-$plugin->release = 'v1.0.0';
+$plugin->release = 'v1.0.1';
 
-// DÉPENDANCES AJUSTÉES - Plus flexibles
+// Dépendances
 $plugin->dependencies = [
-    // On vérifie seulement que le plugin facetoface existe, 
-    // sans forcer une version spécifique qui pourrait être incompatible
-    'mod_facetoface' => ANY_VERSION, // Accepte n'importe quelle version
+    // Vérifie seulement que le plugin facetoface existe.
+    // Pas de contrainte de version stricte pour éviter les conflits.
+    'mod_facetoface' => ANY_VERSION,
 ];
 
-// Alternative : supprimer complètement les dépendances si le problème persiste
+// Alternative : supprimer complètement les dépendances si nécessaire
 // $plugin->dependencies = [];

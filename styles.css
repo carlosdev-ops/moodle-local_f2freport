@@ -1,0 +1,39 @@
+/* Styles spécifiques au plugin local_f2freport */
+
+.local_f2freport-wrapper {
+    margin-bottom: 1.5rem;   /* espace sous le formulaire */
+}
+
+.local_f2freport-wrapper .mform fieldset.collapsible {
+    margin-bottom: 1rem;     /* espace entre les sections du form */
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    background-color: #fafafa;
+}
+
+.local_f2freport-wrapper .mform legend a {
+    font-weight: 600;
+    color: #333;
+}
+
+.local_f2freport-table {
+    margin-top: 1.5rem;      /* espace au-dessus du tableau */
+}
+
+.local_f2freport-table .generaltable {
+    border: 1px solid #ddd;
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.local_f2freport-table .generaltable th,
+.local_f2freport-table .generaltable td {
+    padding: 0.6rem 0.8rem;
+}
+
+.local_f2freport-table .generaltable th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+}

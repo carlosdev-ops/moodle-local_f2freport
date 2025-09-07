@@ -18,7 +18,7 @@ class sessions_table extends \table_sql {
         $this->venuefieldid = $fieldids['venue'] ?? null;
         $this->roomfieldid  = $fieldids['room']  ?? null;
 
-        // Déterminer colonnes/entêtes selon la config admin.
+        // Colonnes / entêtes depuis la config admin.
         $cfg = get_config('local_f2freport') ?: new \stdClass();
         $allcols = [
             'courseid'          => get_string('courseid', 'local_f2freport'),
@@ -35,28 +35,20 @@ class sessions_table extends \table_sql {
         $enabledkeys = [];
         if (!empty($cfg->columns)) {
             if (is_array($cfg->columns)) {
-                // admin_setting_configmulticheckbox → tableau associatif col => 1/0.
                 foreach ($cfg->columns as $k => $v) {
-                    if (!empty($v) && isset($allcols[$k])) {
-                        $enabledkeys[] = $k;
-                    }
+                    if (!empty($v) && isset($allcols[$k])) { $enabledkeys[] = $k; }
                 }
             } else if (is_string($cfg->columns)) {
-                // fallback si jamais stocké en CSV.
                 foreach (explode(',', $cfg->columns) as $k) {
                     $k = trim($k);
-                    if ($k !== '' && isset($allcols[$k])) {
-                        $enabledkeys[] = $k;
-                    }
+                    if ($k !== '' && isset($allcols[$k])) { $enabledkeys[] = $k; }
                 }
             }
         }
-        if (empty($enabledkeys)) {
-            $enabledkeys = array_keys($allcols); // tout par défaut
-        }
+        if (empty($enabledkeys)) { $enabledkeys = array_keys($allcols); }
 
         $columns = $enabledkeys;
-        $headers = array_map(function($k) use ($allcols) { return $allcols[$k]; }, $enabledkeys);
+        $headers = array_map(fn($k) => $allcols[$k], $enabledkeys);
 
         $this->define_columns($columns);
         $this->define_headers($headers);
@@ -64,9 +56,9 @@ class sessions_table extends \table_sql {
         $this->collapsible(false);
         $this->pageable(true);
 
-        [$fields, $from, $where, $params, $countsql] = $this->build_sql();
+        [$fields, $from, $where, $params, $countfrom, $countparams] = $this->build_sql();
         $this->set_sql($fields, $from, $where, $params);
-        $this->set_count_sql($countsql, $params);
+        $this->set_count_sql("SELECT COUNT(1) FROM $countfrom WHERE $where", $countparams);
     }
 
     protected function build_sql(): array {
@@ -108,6 +100,7 @@ class sessions_table extends \table_sql {
             ";
         }
 
+        // Métadonnées ville/lieu/salle.
         $from .= "
             LEFT JOIN {facetoface_session_data} dcity
                 ON dcity.sessionid = s.id AND dcity.fieldid = :cityfieldid
@@ -145,74 +138,61 @@ class sessions_table extends \table_sql {
             'roomfieldid'  => $this->roomfieldid  ?? 0,
         ];
 
-        if (!empty($this->filters['courseid'])) {
-            $where .= ' AND f.course = :courseid';
-            $params['courseid'] = (int)$this->filters['courseid'];
+        // --- Filtres ---
+        if (!empty($this->filters['datefrom'])) {
+            $where .= " AND {$timestartcol} >= :datefrom";
+            $params['datefrom'] = (int)$this->filters['datefrom'];
+        }
+        if (!empty($this->filters['dateto'])) {
+            $where .= " AND {$timestartcol} <= :dateto";
+            $params['dateto'] = (int)$this->filters['dateto'] + 86399;
         }
 
-        $now = time();
-        if (!empty($this->filters['futureonly'])) {
-            $where .= " AND {$timestartcol} >= :now";
-            $params['now'] = $now;
-        } else {
-            if (!empty($this->filters['datefrom'])) {
-                $where .= " AND {$timestartcol} >= :datefrom";
-                $params['datefrom'] = (int)$this->filters['datefrom'];
-            }
-            if (!empty($this->filters['dateto'])) {
-                $datetoend = (int)$this->filters['dateto'] + 86399;
-                $where .= " AND {$timestartcol} <= :dateto";
-                $params['dateto'] = $datetoend;
-            }
+        // Lieu (contient) : on cherche dans city OU venue OU room.
+        if (!empty($this->filters['location'])) {
+            $like1 = $DB->sql_like('dcity.data',  ':loc1', false);
+            $like2 = $DB->sql_like('dvenue.data', ':loc2', false);
+            $like3 = $DB->sql_like('droom.data',  ':loc3', false);
+            $where .= " AND ( ($like1) OR ($like2) OR ($like3) )";
+            $needle = '%' . $this->filters['location'] . '%';
+            $params['loc1'] = $needle;
+            $params['loc2'] = $needle;
+            $params['loc3'] = $needle;
         }
 
-        $countfrom = "
-            {facetoface} f
-            JOIN {course} c ON c.id = f.course
-            JOIN {facetoface_sessions} s ON s.facetoface = f.id
-        ";
-        if (!$hasdirectdates) {
-            $countfrom .= "
-                LEFT JOIN (
-                    SELECT sessionid, MIN(timestart) AS timestart, MAX(timefinish) AS timefinish
-                      FROM {facetoface_sessions_dates}
-                  GROUP BY sessionid
-                ) sd ON sd.sessionid = s.id
-            ";
-        }
-        $countsql = "SELECT COUNT(1) FROM $countfrom WHERE $where";
+        // Réplique FROM pour le count (mêmes jointures si on filtre dessus).
+        $countfrom = $from;
 
-        return [$fields, $from, $where, $params, $countsql];
+        // Params utilisés par le COUNT (pas les placeholders inutiles).
+        $countparams = $params;
+        unset($countparams['ns_city'], $countparams['ns_venue'], $countparams['ns_room']);
+
+        return [$fields, $from, $where, $params, $countfrom, $countparams];
     }
 
+    // Rendus de colonnes.
     public function col_timestart($row): string {
-        if (!empty($row->timestart)) {
-            return userdate((int)$row->timestart, get_string('strftimedatetime', 'langconfig'));
-        }
-        return '—';
+        return !empty($row->timestart)
+            ? userdate((int)$row->timestart, get_string('strftimedatetime', 'langconfig'))
+            : '—';
     }
-
     public function col_timefinish($row): string {
-        if (!empty($row->timefinish)) {
-            return userdate((int)$row->timefinish, get_string('strftimedatetime', 'langconfig'));
-        }
-        return '—';
+        return !empty($row->timefinish)
+            ? userdate((int)$row->timefinish, get_string('strftimedatetime', 'langconfig'))
+            : '—';
     }
+    public function col_city($row): string   { return format_string($row->city); }
+    public function col_venue($row): string  { return format_string($row->venue); }
+    public function col_room($row): string   { return format_string($row->room); }
+    public function col_coursefullname($row): string { return format_string($row->coursefullname); }
 
-    public function col_city($row): string { return format_string($row->city); }
-    public function col_venue($row): string { return format_string($row->venue); }
-    public function col_room($row): string  { return format_string($row->room); }
-
-    // Affiche "présents / inscrits".
+    // "présents / inscrits".
     public function col_totalparticipants($row): string {
         $present = (int)($row->presentcount ?? 0);
         $total   = (int)($row->totalparticipants ?? 0);
         return $present . ' / ' . $total;
     }
 
-    public function col_coursefullname($row): string { return format_string($row->coursefullname); }
-
-    // Exposé pour 2D.2 (compteur total).
     public function get_totalrows(): int {
         return (int)($this->totalrows ?? 0);
     }
