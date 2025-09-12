@@ -1,0 +1,47 @@
+{{!
+  template: local_f2freport/report
+  Contexte attendu :
+    - filtershtml   : HTML du moodleform (filtres)
+    - countsummary  : texte i18n “showingcount” (optionnel)
+    - hasresults    : booléen
+    - tablehtml     : HTML de la table (table_sql)
+}}
+
+<div class="local-f2freport container-fluid">
+  <div class="row">
+    <!-- largeur centrée : ~colonne large mais pas plein écran -->
+    <div class="col-xl-10 col-lg-11 mx-auto">
+
+      <!-- Carte des filtres -->
+      <div class="card mb-3">
+        <div class="card-header">
+          {{#str}} filters, local_f2freport {{/str}}
+        </div>
+        <div class="card-body">
+          {{{filtershtml}}}
+        </div>
+      </div>
+
+      <!-- Compteur -->
+      {{#countsummary}}
+      <div class="alert alert-info py-2 mb-3">{{countsummary}}</div>
+      {{/countsummary}}
+
+      <!-- Résultats -->
+      <div class="results">
+        {{#hasresults}}
+          <div class="table-responsive">
+            {{{tablehtml}}}
+          </div>
+        {{/hasresults}}
+
+        {{^hasresults}}
+          <div class="alert alert-info mb-0">
+            {{#str}} nosessions, local_f2freport {{/str}}
+          </div>
+        {{/hasresults}}
+      </div>
+
+    </div>
+  </div>
+</div>
