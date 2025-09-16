@@ -204,7 +204,8 @@ class report_builder {
             COALESCE(dvenue.data, :ns_venue)  AS venue,
             COALESCE(droom.data,  :ns_room)   AS room,
             COALESCE(su.participants, 0) AS totalparticipants,
-            COALESCE(att.presentcount, 0) AS presentcount
+            COALESCE(att.presentcount, 0) AS presentcount,
+            s.capacity AS maxcapacity
         ";
 
         $from = "
@@ -232,20 +233,30 @@ class report_builder {
                 ON droom.sessionid = s.id AND droom.fieldid = :roomfieldid
 
             LEFT JOIN (
-                SELECT sessionid, COUNT(1) AS participants
-                  FROM {facetoface_signups}
-              GROUP BY sessionid
+                SELECT fsu.sessionid, COUNT(DISTINCT fsu.userid) AS participants
+                  FROM {facetoface_signups} fsu
+                  JOIN (
+                    SELECT signupid, MAX(id) AS maxstatusid
+                      FROM {facetoface_signups_status}
+                     WHERE superceded = 0
+                  GROUP BY signupid
+                  ) latest ON latest.signupid = fsu.id
+                  JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
+                 WHERE fss.statuscode IN (40, 50, 60, 70, 80, 90, 100)
+              GROUP BY fsu.sessionid
             ) su ON su.sessionid = s.id
 
             LEFT JOIN (
-                SELECT fsu.sessionid, COUNT(1) AS presentcount
+                SELECT fsu.sessionid, COUNT(DISTINCT fsu.userid) AS presentcount
                   FROM {facetoface_signups} fsu
                   JOIN (
-                        SELECT signupid, MAX(id) AS maxid
-                          FROM {facetoface_signups_status}
-                      GROUP BY signupid
-                  ) last ON last.signupid = fsu.id
-                  JOIN {facetoface_signups_status} fss ON fss.id = last.maxid AND fss.statuscode = 100
+                    SELECT signupid, MAX(id) AS maxstatusid
+                      FROM {facetoface_signups_status}
+                     WHERE superceded = 0
+                  GROUP BY signupid
+                  ) latest ON latest.signupid = fsu.id
+                  JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
+                 WHERE fss.statuscode IN (90, 100)
               GROUP BY fsu.sessionid
             ) att ON att.sessionid = s.id
         ";

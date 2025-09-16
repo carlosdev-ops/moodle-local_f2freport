@@ -172,15 +172,31 @@ class sessions_table extends \table_sql {
 
     /**
      * Format the totalparticipants column.
-     * Displays "present / signed up".
+     * Displays "signed up / capacity" as a clickable link.
      *
      * @param \stdClass $row The row data.
      * @return string The formatted column content.
      */
     public function col_totalparticipants($row): string {
-        $present = (int)($row->presentcount ?? 0);
-        $total   = (int)($row->totalparticipants ?? 0);
-        return $present . ' / ' . $total;
+        $registered = (int)($row->totalparticipants ?? 0);
+        $capacity   = (int)($row->maxcapacity ?? 0);
+
+        // If no capacity is set, show just the registered count
+        if ($capacity > 0) {
+            $text = $registered . ' / ' . $capacity;
+        } else {
+            $text = (string)$registered;
+        }
+
+        if ($registered > 0) {
+            $url = new \moodle_url('/local/f2freport/participants.php', ['sessionid' => $row->sessionid]);
+            return \html_writer::link($url, $text, [
+                'target' => '_blank',
+                'title' => get_string('viewparticipants', 'local_f2freport')
+            ]);
+        }
+
+        return $text;
     }
 
     /**
