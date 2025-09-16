@@ -1,0 +1,109 @@
+{{! templates/filters.mustache }}
+
+<div class="f2f-filters">
+  {{!-- Single responsive layout with CSS-based responsive behavior --}}
+  <div class="filters-container">
+    {{!-- Row 1: Course and Future checkbox --}}
+    <div class="filters-row-1">
+      <div class="filter-course">
+        <label for="courseid" class="form-label">{{#str}}filter_course, local_f2freport{{/str}}</label>
+        <select id="courseid" name="courseid" class="form-select">
+          {{#courseoptions}}
+            <option value="{{id}}" {{#selected}}selected{{/selected}}>{{name}}</option>
+          {{/courseoptions}}
+        </select>
+      </div>
+
+      <div class="filter-dates">
+        <div class="filter-date-from">
+          <label for="datefrom" class="form-label">{{#str}}filter_startdate, local_f2freport{{/str}}</label>
+          <input id="datefrom" name="datefrom" type="date" class="form-control" value="{{datefrom}}"
+                 title="{{#str}}filter_startdate, local_f2freport{{/str}}">
+        </div>
+
+        <div class="filter-date-to">
+          <label for="dateto" class="form-label">{{#str}}filter_enddate, local_f2freport{{/str}}</label>
+          <input id="dateto" name="dateto" type="date" class="form-control" value="{{dateto}}"
+                 title="{{#str}}filter_enddate, local_f2freport{{/str}}">
+        </div>
+      </div>
+
+      <div class="filter-future">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="futureonly" name="futureonly" {{#futureonly}}checked{{/futureonly}}>
+          <label class="form-check-label" for="futureonly">
+            {{#str}}filter_upcoming, local_f2freport{{/str}}
+          </label>
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa fa-search" aria-hidden="true"></i>
+          <span class="btn-text">{{#str}}filter, local_f2freport{{/str}}</span>
+        </button>
+        <button type="button" id="f2f-reset" class="btn btn-outline-secondary">
+          <i class="fa fa-refresh" aria-hidden="true"></i>
+          <span class="btn-text-reset">{{#str}}reset, local_f2freport{{/str}}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Find the nearest form (works whether the template wraps a form or is inside one)
+  const root = document.currentScript.previousElementSibling;
+  let form = root && root.closest('form');
+  if (!form) form = document.querySelector('form.f2f-filter-form');
+  if (!form) return;
+
+  const ids = ['courseid','datefrom','dateto','futureonly'];
+  let timer;
+  const submitDebounced = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => form.submit(), 400);
+  };
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', submitDebounced);
+  });
+
+  // If "upcoming only" is checked and no start date, prefill with today
+  const upcoming = document.getElementById('futureonly');
+  if (upcoming) {
+    upcoming.addEventListener('change', () => {
+      if (upcoming.checked) {
+        const sd = document.getElementById('datefrom');
+        if (sd && !sd.value) {
+          const d = new Date();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          sd.value = `${d.getFullYear()}-${m}-${day}`;
+        }
+      }
+    });
+  }
+
+  // Reset button clears all fields and submits
+  const resetBtn = document.getElementById('f2f-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      const course = document.getElementById('courseid');
+      const sd = document.getElementById('datefrom');
+      const ed = document.getElementById('dateto');
+      const up = document.getElementById('futureonly');
+
+      if (course) course.value = '0';
+      if (sd) sd.value = '';
+      if (ed) ed.value = '';
+      if (up) up.checked = false;
+
+      form.submit();
+    });
+  }
+})();
+</script>

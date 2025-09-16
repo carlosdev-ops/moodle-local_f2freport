@@ -1,0 +1,57 @@
+{{!
+  template: local_f2freport/report
+  Contexte attendu :
+    - filtershtml   : HTML du moodleform (filtres)
+    - countsummary  : texte i18n “showingcount” (optionnel)
+    - hasresults    : booléen
+    - tablehtml     : HTML de la table (table_sql)
+}}
+
+<div class="local-f2freport container-fluid">
+  <div class="row">
+    <!-- largeur centrée : ~colonne large mais pas plein écran -->
+    <div class="col-xl-10 col-lg-11 mx-auto">
+
+      <div class="mb-3">
+        <form class="f2f-filter-form" method="get" action="{{{actionurl}}}">
+          <input type="hidden" name="sesskey" value="{{sesskey}}">
+          <div class="card border-0">
+            <div class="card-body py-2">
+              <h5 class="card-title">{{#str}}filters, local_f2freport{{/str}}</h5>
+              {{> local_f2freport/filters }}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Messages -->
+      {{#dates_swapped}}
+      <div class="alert alert-warning py-2 mb-3">
+        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+        {{#str}}datesswapped, local_f2freport{{/str}}
+      </div>
+      {{/dates_swapped}}
+
+      <!-- Compteur -->
+      {{#countsummary}}
+      <div class="alert alert-info py-2 mb-3">{{countsummary}}</div>
+      {{/countsummary}}
+
+      <!-- Résultats -->
+      <div class="results">
+        {{#hasresults}}
+          <div class="table-responsive">
+            {{{tablehtml}}}
+          </div>
+        {{/hasresults}}
+
+        {{^hasresults}}
+          <div class="alert alert-info mb-0">
+            {{#str}} nosessions, local_f2freport {{/str}}
+          </div>
+        {{/hasresults}}
+      </div>
+
+    </div>
+  </div>
+</div>

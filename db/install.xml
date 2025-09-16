@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/f2freport/db" VERSION="20230913" COMMENT="XMLDB file for Moodle local/f2freport">
+  <TABLES>
+    <!-- This plugin doesn't create any tables - it only reports on existing Face-to-face data -->
+  </TABLES>
+</XMLDB>
