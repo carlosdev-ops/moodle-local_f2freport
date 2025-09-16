@@ -36,21 +36,14 @@ class report_filter_form extends \moodleform {
     public function definition() {
         $mform = $this->_form;
 
-        // Course options injected by the controller.
-        $courseoptions = $this->_customdata['courseoptions'] ?? [];
-        if (empty($courseoptions)) {
-            $courseoptions = [0 => get_string('allcourses', 'local_f2freport')];
-        }
-
-        // Course filter.
+        // Course filter - text search instead of dropdown.
         $mform->addElement(
-            'select',
-            'courseid',
+            'text',
+            'coursetext',
             get_string('filtercourse', 'local_f2freport'),
-            $courseoptions
+            ['placeholder' => get_string('searchcourses', 'local_f2freport')]
         );
-        $mform->setType('courseid', PARAM_INT);
-        $mform->setDefault('courseid', 0);
+        $mform->setType('coursetext', PARAM_TEXT);
 
         // Optional date filters.
         $mform->addElement(

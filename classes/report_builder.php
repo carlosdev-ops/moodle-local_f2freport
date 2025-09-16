@@ -66,6 +66,8 @@ class report_builder {
 
     /**
      * Gets the list of courses having face-to-face activities.
+     * Note: This method is kept for backward compatibility and tests,
+     * but the main UI now uses text search instead of a dropdown.
      *
      * @return array An array of course options for a select menu.
      */
@@ -258,10 +260,22 @@ class report_builder {
             'roomfieldid'  => $fieldids['room'] ?? 0,
         ];
 
-        // Apply course filter only when a specific course is selected.
-        if (!empty($filters['courseid']) && $filters['courseid'] > 0) {
-            $whereclauses[] = 'f.course = :courseid';
-            $params['courseid'] = (int)$filters['courseid'];
+        // Apply course filter by text search (name or ID).
+        if (!empty($filters['coursetext'])) {
+            $coursetext = trim($filters['coursetext']);
+            if ($coursetext !== '') {
+                // Check if the input is numeric (potential course ID)
+                if (is_numeric($coursetext)) {
+                    // Search by ID or name
+                    $whereclauses[] = "(c.id = :courseid OR " . $DB->sql_like('c.fullname', ':coursetext', false) . ")";
+                    $params['courseid'] = (int)$coursetext;
+                    $params['coursetext'] = '%' . $DB->sql_like_escape($coursetext) . '%';
+                } else {
+                    // Search only by name
+                    $whereclauses[] = $DB->sql_like('c.fullname', ':coursetext', false);
+                    $params['coursetext'] = '%' . $DB->sql_like_escape($coursetext) . '%';
+                }
+            }
         }
 
         // Apply start date filter.

@@ -42,7 +42,7 @@ $PAGE->set_heading(get_string('trainingreportheading', 'local_f2freport'));
 
 // --- Filter parameters processing ---
 
-$courseid      = optional_param('courseid', 0, PARAM_INT);
+$coursetext    = optional_param('coursetext', '', PARAM_TEXT);
 $datefrom      = optional_param('datefrom', '', PARAM_RAW_TRIMMED);
 $dateto        = optional_param('dateto', '', PARAM_RAW_TRIMMED);
 $upcomingonly  = optional_param('futureonly', 0, PARAM_BOOL);
@@ -90,28 +90,14 @@ if ($upcomingonly) {
 
 // --- Guards and data loading ---
 
-// Guard against invalid course ID and check permissions.
-$course = null;
-if ($courseid > 0) {
-    $course = $DB->get_record('course', ['id' => $courseid], '*', IGNORE_MISSING);
-    if (!$course) {
-        $courseid = 0;
-    } else {
-        // Verify user can view this course
-        $coursecontext = context_course::instance($courseid, IGNORE_MISSING);
-        if (!$coursecontext || !has_capability('moodle/course:view', $coursecontext)) {
-            $courseid = 0;
-            $course = null;
-        }
-    }
-}
+// No specific course validation needed for text search.
 
 $builder = new report_builder();
 
 // --- Table and data setup ---
 
 $filters = [
-    'courseid' => $courseid,
+    'coursetext' => $coursetext,
     'startts'  => $startts,
     'endts'    => $endts,
 ];
@@ -120,8 +106,8 @@ $fieldids = $builder->get_field_ids();
 $table = new sessions_table('local_f2freport_sessions', $builder, $filters, $fieldids);
 
 $urlparams = [];
-if ($courseid > 0) {
-    $urlparams['courseid'] = $courseid;
+if (!empty($coursetext)) {
+    $urlparams['coursetext'] = $coursetext;
 }
 if (!empty($datefrom)) {
     $urlparams['datefrom'] = $datefrom;
@@ -137,16 +123,6 @@ $table->define_baseurl($baseurl);
 
 // --- Rendering ---
 
-$courseoptions = $builder->get_course_options();
-$templatecourseoptions = [];
-foreach ($courseoptions as $id => $fullname) {
-    $templatecourseoptions[] = [
-        'id' => $id,
-        'name' => $fullname,
-        'selected' => ($id == $courseid),
-    ];
-}
-
 $cfg = get_config('local_f2freport') ?: new stdClass();
 $pagesize = !empty($cfg->pagesize) ? max(1, (int)$cfg->pagesize) : 25;
 ob_start();
@@ -161,7 +137,7 @@ $datefromvalue = $datefrom;
 $datetovalue = $dateto;
 
 $templatectx = [
-    'courseoptions'  => $templatecourseoptions,
+    'coursetext'     => $coursetext,
     'datefrom'       => $datefromvalue,
     'dateto'         => $datetovalue,
     'futureonly'     => (bool) $upcomingonly,

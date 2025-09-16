@@ -6,12 +6,10 @@
     {{!-- Row 1: Course and Future checkbox --}}
     <div class="filters-row-1">
       <div class="filter-course">
-        <label for="courseid" class="form-label">{{#str}}filter_course, local_f2freport{{/str}}</label>
-        <select id="courseid" name="courseid" class="form-select">
-          {{#courseoptions}}
-            <option value="{{id}}" {{#selected}}selected{{/selected}}>{{name}}</option>
-          {{/courseoptions}}
-        </select>
+        <label for="coursetext" class="form-label">{{#str}}filter_course, local_f2freport{{/str}}</label>
+        <input id="coursetext" name="coursetext" type="text" class="form-control" value="{{coursetext}}"
+               placeholder="{{#str}}searchcourses, local_f2freport{{/str}}"
+               title="{{#str}}filter_course, local_f2freport{{/str}}">
       </div>
 
       <div class="filter-dates">
@@ -59,7 +57,7 @@
   if (!form) form = document.querySelector('form.f2f-filter-form');
   if (!form) return;
 
-  const ids = ['courseid','datefrom','dateto','futureonly'];
+  const ids = ['coursetext','datefrom','dateto','futureonly'];
   let timer;
   const submitDebounced = () => {
     clearTimeout(timer);
@@ -69,7 +67,16 @@
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener('change', submitDebounced);
+    if (id === 'coursetext') {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          form.submit();
+        }
+      });
+    } else {
+      el.addEventListener('change', submitDebounced);
+    }
   });
 
   // If "upcoming only" is checked and no start date, prefill with today
@@ -92,12 +99,12 @@
   const resetBtn = document.getElementById('f2f-reset');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      const course = document.getElementById('courseid');
+      const course = document.getElementById('coursetext');
       const sd = document.getElementById('datefrom');
       const ed = document.getElementById('dateto');
       const up = document.getElementById('futureonly');
 
-      if (course) course.value = '0';
+      if (course) course.value = '';
       if (sd) sd.value = '';
       if (ed) ed.value = '';
       if (up) up.checked = false;

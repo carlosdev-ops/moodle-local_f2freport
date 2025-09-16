@@ -29,6 +29,7 @@ $string['trainingreporttitle'] = 'Training sessions';
 $string['trainingreportheading'] = 'Training sessions';
 $string['filtercourse'] = 'Course';
 $string['allcourses'] = 'All courses';
+$string['searchcourses'] = 'Search by name or ID...';
 $string['futureonly'] = 'Show future sessions only';
 $string['filter'] = 'Filter';
 $string['reset'] = 'Reset';

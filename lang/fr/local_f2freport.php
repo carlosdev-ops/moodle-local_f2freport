@@ -29,6 +29,7 @@ $string['trainingreporttitle'] = 'Sessions de formation';
 $string['trainingreportheading'] = 'Sessions de formation';
 $string['filtercourse'] = 'Cours';
 $string['allcourses'] = 'Tous les cours';
+$string['searchcourses'] = 'Rechercher par nom ou ID...';
 $string['futureonly'] = 'Afficher seulement les sessions à venir';
 $string['filter'] = 'Filtrer';
 $string['reset'] = 'Réinitialiser';
