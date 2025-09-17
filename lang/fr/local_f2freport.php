@@ -30,6 +30,15 @@ $string['trainingreportheading'] = 'Sessions de formation';
 $string['filtercourse'] = 'Cours';
 $string['allcourses'] = 'Tous les cours';
 $string['searchcourses'] = 'Rechercher par nom ou ID...';
+$string['searchcoursesmulti'] = 'Recherche multicours : séparez par des virgules. Ex: "Math, Physique, Chimie"';
+$string['coursefilterhelp'] = 'Filtre multicours';
+$string['coursefilterhelp_help'] = 'Entrez plusieurs termes de recherche de cours séparés par des virgules :
+<ul>
+<li>Utilisez des virgules pour séparer différents critères de cours</li>
+<li>Exemple : "Math, Physique, Chimie" trouvera les cours contenant l\'un de ces termes</li>
+<li>Les recherches incluent le nom du cours et l\'ID du cours</li>
+<li>Chaque terme sera recherché indépendamment</li>
+</ul>';
 $string['futureonly'] = 'Afficher seulement les sessions à venir';
 $string['filter'] = 'Filtrer';
 $string['reset'] = 'Réinitialiser';
@@ -67,6 +76,7 @@ $string['datefrom'] = 'Date de début';
 $string['dateto'] = 'Date de fin';
 $string['showcustomcols'] = 'Afficher les colonnes personnalisées';
 $string['showcustomcols_desc'] = 'Si coché, le rapport inclura des colonnes personnalisées supplémentaires.';
+$string['datesswapped'] = 'La date de début était postérieure à la date de fin, les dates ont été automatiquement inversées.';
 $string['privacy:metadata'] = 'Le plugin Rapport Face-to-face ne stocke aucune donnée personnelle. Il ne fait qu\'afficher des données provenant d\'autres plugins Moodle.';
 $string['gotocourse'] = 'Aller au cours';
 $string['filter_startdate'] = 'Date de début';

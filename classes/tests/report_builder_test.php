@@ -131,4 +131,48 @@ class report_builder_test extends \advanced_testcase {
         $this->assertEquals($venuefieldid, $fieldids['venue']);
         $this->assertEquals($roomfieldid, $fieldids['room']);
     }
+
+    /**
+     * Tests the parse_course_filter method with logical operators.
+     * @covers \local_f2freport\report_builder::parse_course_filter
+     */
+    public function test_parse_course_filter() {
+        // Test simple search term
+        $result = report_builder::parse_course_filter('Math');
+        $this->assertCount(1, $result['conditions']);
+        $this->assertEquals('AND', $result['conditions'][0]['type']);
+
+        // Test AND operator (French)
+        $result = report_builder::parse_course_filter('Math ET Physique');
+        $this->assertCount(2, $result['conditions']);
+        $this->assertEquals('AND', $result['conditions'][0]['type']);
+        $this->assertEquals('AND', $result['conditions'][1]['type']);
+
+        // Test OR operator (English)
+        $result = report_builder::parse_course_filter('PHP OR Java');
+        $this->assertCount(2, $result['conditions']);
+        $this->assertEquals('AND', $result['conditions'][0]['type']); // First term is always AND
+        $this->assertEquals('OR', $result['conditions'][1]['type']);
+
+        // Test NOT operator (French)
+        $result = report_builder::parse_course_filter('NON Anglais');
+        $this->assertCount(1, $result['conditions']);
+        $this->assertEquals('NOT', $result['conditions'][0]['type']);
+
+        // Test mixed operators
+        $result = report_builder::parse_course_filter('Math ET Physique OU Chimie NON Anglais');
+        $this->assertCount(4, $result['conditions']);
+
+        // Test empty string
+        $result = report_builder::parse_course_filter('');
+        $this->assertEmpty($result['conditions']);
+        $this->assertEmpty($result['params']);
+
+        // Test numeric course ID
+        $result = report_builder::parse_course_filter('123');
+        $this->assertCount(1, $result['conditions']);
+        $this->assertArrayHasKey('courseid_1', $result['params']);
+        $this->assertArrayHasKey('coursetext_1', $result['params']);
+        $this->assertEquals(123, $result['params']['courseid_1']);
+    }
 }

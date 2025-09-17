@@ -30,7 +30,7 @@ $plugin->component = 'local_f2freport';
 $plugin->version = 2025091405;
 
 // Minimum Moodle version required.
-$plugin->requires = 2023042400; // Moodle 4.2.0.
+$plugin->requires = 2021051700; // Moodle 3.11.0.
 
 // Plugin maturity level.
 $plugin->maturity = MATURITY_STABLE;

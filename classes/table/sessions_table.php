@@ -108,7 +108,7 @@ class sessions_table extends \table_sql {
         // Guard: ensure we have a valid course ID before creating course links.
         if (!empty($row->courseid) && !empty($row->coursename)) {
             $url = new \moodle_url('/course/view.php', ['id' => $row->courseid]);
-            return \html_writer::link($url, format_string($row->coursename));
+            return \html_writer::link($url, format_string($row->coursename), ['target' => '_blank']);
         }
         return format_string($row->coursename ?? get_string('notspecified', 'local_f2freport'));
     }

@@ -50,9 +50,40 @@ class participants_manager {
                 JOIN {user} u ON u.id = fs.userid
                 WHERE fs.sessionid = :sessionid
                   AND u.deleted = 0
-                ORDER BY u.lastname, u.firstname";
+                ORDER BY fss.statuscode DESC, u.lastname, u.firstname";
 
         return $DB->get_records_sql($sql, ['sessionid' => $sessionid]);
+    }
+
+    /**
+     * Get participants grouped by status for a specific session.
+     *
+     * @param int $sessionid The session ID
+     * @return array Array of participants grouped by status
+     */
+    public static function get_participants_by_status(int $sessionid): array {
+        $participants = self::get_session_participants($sessionid);
+        $grouped = [];
+
+        foreach ($participants as $participant) {
+            $status = $participant->statuscode;
+            if (!isset($grouped[$status])) {
+                $grouped[$status] = [];
+            }
+            $grouped[$status][] = $participant;
+        }
+
+        // Sort by status priority (most important first)
+        $statusOrder = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
+        $orderedGroups = [];
+
+        foreach ($statusOrder as $statusCode) {
+            if (isset($grouped[$statusCode])) {
+                $orderedGroups[$statusCode] = $grouped[$statusCode];
+            }
+        }
+
+        return $orderedGroups;
     }
 
     /**
@@ -77,6 +108,29 @@ class participants_manager {
         ];
 
         return $statuses[$statuscode] ?? get_string('status_unknown', 'local_f2freport');
+    }
+
+    /**
+     * Get Bootstrap badge class for a status code.
+     *
+     * @param int $statuscode The status code
+     * @return string The Bootstrap badge class
+     */
+    public static function get_status_badge_class(int $statuscode): string {
+        $classes = [
+            10 => 'badge-secondary',      // User cancelled
+            20 => 'badge-dark',           // Session cancelled
+            30 => 'badge-danger',         // Declined
+            40 => 'badge-info',           // Requested
+            50 => 'badge-primary',        // Approved
+            60 => 'badge-warning',        // Waitlisted
+            70 => 'badge-success',        // Booked
+            80 => 'badge-danger',         // No show
+            90 => 'badge-warning',        // Partially attended
+            100 => 'badge-success'        // Fully attended
+        ];
+
+        return $classes[$statuscode] ?? 'badge-secondary';
     }
 
     /**

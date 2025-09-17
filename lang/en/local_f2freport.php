@@ -30,6 +30,15 @@ $string['trainingreportheading'] = 'Training sessions';
 $string['filtercourse'] = 'Course';
 $string['allcourses'] = 'All courses';
 $string['searchcourses'] = 'Search by name or ID...';
+$string['searchcoursesmulti'] = 'Multiple course search: separate with commas. E.g: "Math, Physics, Chemistry"';
+$string['coursefilterhelp'] = 'Multiple course filter';
+$string['coursefilterhelp_help'] = 'Enter multiple course search terms separated by commas:
+<ul>
+<li>Use commas to separate different course criteria</li>
+<li>Example: "Math, Physics, Chemistry" will find courses containing any of these terms</li>
+<li>Searches include both course name and course ID</li>
+<li>Each term will be matched independently</li>
+</ul>';
 $string['futureonly'] = 'Show future sessions only';
 $string['filter'] = 'Filter';
 $string['reset'] = 'Reset';

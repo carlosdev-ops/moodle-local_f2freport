@@ -56,56 +56,119 @@ if (!$session) {
 }
 
 $PAGE->set_title(get_string('participantstitle', 'local_f2freport', $session->coursename));
-$PAGE->set_heading(get_string('participantsheading', 'local_f2freport'));
+$PAGE->set_heading('');
 
-// Get participants and their status
-$participants = participants_manager::get_session_participants($sessionid);
+// Add custom CSS for participants page
+$PAGE->requires->css('/local/f2freport/styles.css');
+
+// Get participants grouped by status
+$participantsByStatus = participants_manager::get_participants_by_status($sessionid);
+$totalParticipants = 0;
+foreach ($participantsByStatus as $statusCode => $statusGroup) {
+    // Exclude user cancelled participants (status code 10) from total count
+    if ($statusCode != 10) {
+        $totalParticipants += count($statusGroup);
+    }
+}
 
 echo $OUTPUT->header();
 
-// Session information
-echo html_writer::tag('h3', get_string('sessioninfo', 'local_f2freport'));
-echo html_writer::start_tag('div', ['class' => 'session-info mb-3']);
-echo html_writer::tag('p', get_string('course', 'core') . ': ' . format_string($session->coursename));
-echo html_writer::tag('p', get_string('sessionid', 'local_f2freport') . ': ' . $session->id);
+// Add participants page class for styling
+echo html_writer::start_tag('div', ['class' => 'participants-page']);
+
+// Session information card
+echo html_writer::start_tag('div', ['class' => 'card mb-4 shadow-sm']);
+echo html_writer::start_tag('div', ['class' => 'card-header bg-secondary text-white']);
+echo html_writer::tag('h3', get_string('sessioninfo', 'local_f2freport'), ['class' => 'card-title mb-0']);
+echo html_writer::end_tag('div');
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+// First row: Course information
+echo html_writer::start_tag('div', ['class' => 'row mb-3']);
+echo html_writer::start_tag('div', ['class' => 'col-12']);
+echo html_writer::start_tag('div', ['class' => 'course-info bg-light p-3 rounded']);
+echo html_writer::tag('h4', format_string($session->coursename), ['class' => 'mb-1']);
+echo html_writer::tag('p', '<strong>' . get_string('courseid', 'local_f2freport') . ':</strong> ' . $session->courseid, ['class' => 'mb-0 text-muted']);
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+
+// Second row: Session details
+echo html_writer::start_tag('div', ['class' => 'row']);
+echo html_writer::start_tag('div', ['class' => 'col-md-4']);
+echo html_writer::start_tag('div', ['class' => 'info-item']);
+echo html_writer::tag('div', get_string('courseid', 'local_f2freport'), ['class' => 'info-label text-muted small']);
+echo html_writer::tag('div', $session->courseid, ['class' => 'info-value h5 mb-0']);
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+
+echo html_writer::start_tag('div', ['class' => 'col-md-4']);
 if ($session->timestart) {
-    echo html_writer::tag('p', get_string('timestart', 'local_f2freport') . ': ' .
-        userdate($session->timestart, get_string('strftimedatetime', 'langconfig')));
+    echo html_writer::start_tag('div', ['class' => 'info-item']);
+    echo html_writer::tag('div', get_string('timestart', 'local_f2freport'), ['class' => 'info-label text-muted small']);
+    echo html_writer::tag('div', userdate($session->timestart, get_string('strftimedatetime', 'langconfig')), ['class' => 'info-value h6 mb-0']);
+    echo html_writer::end_tag('div');
 }
 echo html_writer::end_tag('div');
 
-// Participants table
-if (!empty($participants)) {
-    echo html_writer::tag('h3', get_string('participantslist', 'local_f2freport') . ' (' . count($participants) . ')');
+echo html_writer::start_tag('div', ['class' => 'col-md-4']);
+echo html_writer::start_tag('div', ['class' => 'info-item']);
+echo html_writer::tag('div', get_string('totalparticipants', 'local_f2freport'), ['class' => 'info-label text-muted small']);
+echo html_writer::tag('div', $totalParticipants, ['class' => 'info-value h5 mb-0 text-primary']);
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
-    $table = new html_table();
-    $table->head = [
-        get_string('fullname'),
-        get_string('email'),
-        get_string('status', 'local_f2freport'),
-        get_string('signuptime', 'local_f2freport')
-    ];
-    $table->attributes['class'] = 'table table-striped';
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
-    foreach ($participants as $participant) {
-        $statustext = participants_manager::get_status_text($participant->statuscode);
-        $signuptime = $participant->timecreated ? userdate($participant->timecreated) : '-';
+// Participants by status
+if (!empty($participantsByStatus)) {
+    foreach ($participantsByStatus as $statusCode => $participants) {
+        $statusText = participants_manager::get_status_text($statusCode);
+        $badgeClass = participants_manager::get_status_badge_class($statusCode);
+        $count = count($participants);
 
-        $table->data[] = [
-            fullname($participant),
-            $participant->email,
-            $statustext,
-            $signuptime
+        // Status group header
+        echo html_writer::start_tag('div', ['class' => 'card mb-3']);
+        echo html_writer::start_tag('div', ['class' => 'card-header d-flex justify-content-between align-items-center']);
+        echo html_writer::tag('h5', $statusText, ['class' => 'mb-0']);
+        echo html_writer::tag('span', $count, ['class' => "badge $badgeClass"]);
+        echo html_writer::end_tag('div');
+
+        // Participants table for this status
+        echo html_writer::start_tag('div', ['class' => 'card-body p-0']);
+        $table = new html_table();
+        $table->head = [
+            get_string('fullname'),
+            get_string('email'),
+            get_string('signuptime', 'local_f2freport')
         ];
-    }
+        $table->attributes['class'] = 'table table-striped mb-0';
 
-    echo html_writer::table($table);
+        foreach ($participants as $participant) {
+            $signuptime = $participant->timecreated ? userdate($participant->timecreated) : '-';
+
+            $table->data[] = [
+                fullname($participant),
+                $participant->email,
+                $signuptime
+            ];
+        }
+
+        echo html_writer::table($table);
+        echo html_writer::end_tag('div');
+        echo html_writer::end_tag('div');
+    }
 } else {
-    echo html_writer::tag('p', get_string('noparticipants', 'local_f2freport'), ['class' => 'alert alert-info']);
+    echo html_writer::tag('div', get_string('noparticipants', 'local_f2freport'), ['class' => 'alert alert-info']);
 }
 
 // Back link
 $backurl = new moodle_url('/local/f2freport/report.php');
 echo html_writer::link($backurl, get_string('backtoreport', 'local_f2freport'), ['class' => 'btn btn-secondary mt-3']);
+
+// Close participants page div
+echo html_writer::end_tag('div');
 
 echo $OUTPUT->footer();

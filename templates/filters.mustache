@@ -7,9 +7,12 @@
     <div class="filters-row-1">
       <div class="filter-course">
         <label for="coursetext" class="form-label">{{#str}}filter_course, local_f2freport{{/str}}</label>
-        <input id="coursetext" name="coursetext" type="text" class="form-control" value="{{coursetext}}"
-               placeholder="{{#str}}searchcourses, local_f2freport{{/str}}"
-               title="{{#str}}filter_course, local_f2freport{{/str}}">
+        <textarea id="coursetext" name="coursetext" class="form-control" rows="2"
+                  placeholder="{{#str}}searchcoursesmulti, local_f2freport{{/str}}"
+                  title="{{#str}}filter_course, local_f2freport{{/str}}">{{coursetext}}</textarea>
+        <small class="form-text text-muted">
+          {{#str}}coursefilterhelp, local_f2freport{{/str}}
+        </small>
       </div>
 
       <div class="filter-dates">

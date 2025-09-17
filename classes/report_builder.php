@@ -178,6 +178,55 @@ class report_builder {
 
 
     /**
+     * Parse course filter text with comma-separated multiple selection.
+     *
+     * @param string $coursetext The course filter text with comma-separated terms.
+     * @return array An array containing SQL conditions and parameters.
+     */
+    public static function parse_course_filter(string $coursetext): array {
+        global $DB;
+
+        $coursetext = trim($coursetext);
+        if (empty($coursetext)) {
+            return ['conditions' => [], 'params' => []];
+        }
+
+        // Split by commas
+        $terms = explode(',', $coursetext);
+
+        $conditions = [];
+        $params = [];
+        $paramCounter = 0;
+
+        foreach ($terms as $term) {
+            $term = trim($term);
+            if (empty($term)) {
+                continue;
+            }
+
+            // Remove quotes if present
+            $searchTerm = trim($term, '"\'');
+            $paramCounter++;
+
+            // Create condition for each term (search in course name or ID)
+            if (is_numeric($searchTerm)) {
+                $condition = "(c.id = :courseid_{$paramCounter} OR " .
+                           $DB->sql_like('c.fullname', ":coursetext_{$paramCounter}", false) . ")";
+                $params["courseid_{$paramCounter}"] = (int)$searchTerm;
+                $params["coursetext_{$paramCounter}"] = '%' . $DB->sql_like_escape($searchTerm) . '%';
+            } else {
+                $condition = $DB->sql_like('c.fullname', ":coursetext_{$paramCounter}", false);
+                $params["coursetext_{$paramCounter}"] = '%' . $DB->sql_like_escape($searchTerm) . '%';
+            }
+
+            // All comma-separated terms are combined with OR logic
+            $conditions[] = ['type' => 'OR', 'condition' => $condition];
+        }
+
+        return ['conditions' => $conditions, 'params' => $params];
+    }
+
+    /**
      * Build the SQL query for the sessions table.
      *
      * @param array $filters The filters to apply.
@@ -271,21 +320,60 @@ class report_builder {
             'roomfieldid'  => $fieldids['room'] ?? 0,
         ];
 
-        // Apply course filter by text search (name or ID).
+        // Apply advanced course filter with logical operators.
         if (!empty($filters['coursetext'])) {
-            $coursetext = trim($filters['coursetext']);
-            if ($coursetext !== '') {
-                // Check if the input is numeric (potential course ID)
-                if (is_numeric($coursetext)) {
-                    // Search by ID or name
-                    $whereclauses[] = "(c.id = :courseid OR " . $DB->sql_like('c.fullname', ':coursetext', false) . ")";
-                    $params['courseid'] = (int)$coursetext;
-                    $params['coursetext'] = '%' . $DB->sql_like_escape($coursetext) . '%';
-                } else {
-                    // Search only by name
-                    $whereclauses[] = $DB->sql_like('c.fullname', ':coursetext', false);
-                    $params['coursetext'] = '%' . $DB->sql_like_escape($coursetext) . '%';
+            $courseFilterResult = self::parse_course_filter($filters['coursetext']);
+            if (!empty($courseFilterResult['conditions'])) {
+                $courseConditions = [];
+                $notConditions = [];
+
+                foreach ($courseFilterResult['conditions'] as $conditionData) {
+                    if ($conditionData['type'] === 'NOT') {
+                        $notConditions[] = $conditionData['condition'];
+                    } else {
+                        $courseConditions[] = [
+                            'condition' => $conditionData['condition'],
+                            'operator' => $conditionData['type']
+                        ];
+                    }
                 }
+
+                $finalCourseConditions = [];
+
+                // Handle positive conditions (AND/OR)
+                if (!empty($courseConditions)) {
+                    $andConditions = [];
+                    $orConditions = [];
+
+                    foreach ($courseConditions as $condData) {
+                        if ($condData['operator'] === 'OR') {
+                            $orConditions[] = $condData['condition'];
+                        } else {
+                            $andConditions[] = $condData['condition'];
+                        }
+                    }
+
+                    if (!empty($andConditions)) {
+                        $finalCourseConditions[] = '(' . implode(' AND ', $andConditions) . ')';
+                    }
+                    if (!empty($orConditions)) {
+                        $finalCourseConditions[] = '(' . implode(' OR ', $orConditions) . ')';
+                    }
+                }
+
+                // Combine positive conditions
+                if (!empty($finalCourseConditions)) {
+                    $positiveCondition = implode(' AND ', $finalCourseConditions);
+                    $whereclauses[] = "($positiveCondition)";
+                }
+
+                // Handle negative conditions (NOT)
+                foreach ($notConditions as $notCondition) {
+                    $whereclauses[] = $notCondition;
+                }
+
+                // Add the filter parameters
+                $params = array_merge($params, $courseFilterResult['params']);
             }
         }
 

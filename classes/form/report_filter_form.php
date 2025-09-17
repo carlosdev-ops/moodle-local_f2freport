@@ -36,14 +36,19 @@ class report_filter_form extends \moodleform {
     public function definition() {
         $mform = $this->_form;
 
-        // Course filter - text search instead of dropdown.
+        // Course filter - multiple selection with comma separation.
         $mform->addElement(
-            'text',
+            'textarea',
             'coursetext',
             get_string('filtercourse', 'local_f2freport'),
-            ['placeholder' => get_string('searchcourses', 'local_f2freport')]
+            [
+                'rows' => 3,
+                'cols' => 50,
+                'placeholder' => get_string('searchcoursesmulti', 'local_f2freport')
+            ]
         );
         $mform->setType('coursetext', PARAM_TEXT);
+        $mform->addHelpButton('coursetext', 'coursefilterhelp', 'local_f2freport');
 
         // Optional date filters.
         $mform->addElement(

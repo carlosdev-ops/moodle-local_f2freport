@@ -19,7 +19,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    align-items: end;
+    align-items: start;
 }
 
 .filter-course {
@@ -41,14 +41,16 @@
 
 .filter-future {
     display: flex;
-    align-items: end;
-    padding-bottom: 0.5rem;
+    align-items: start;
+    padding-top: 2rem;
 }
 
 .filter-actions {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+    align-items: start;
+    padding-top: 2rem;
 }
 
 /* Form elements styling */
@@ -230,4 +232,89 @@
 .f2f-filters .form-check-input:focus {
     outline: 2px solid #0066cc;
     outline-offset: 2px;
+}
+
+/* Participants page styles */
+.participants-page .course-info {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+}
+
+.participants-page .course-info:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.participants-page .info-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    margin-bottom: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.participants-page .info-item:hover {
+    background: #e9ecef;
+}
+
+.participants-page .info-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.participants-page .info-value {
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.participants-page .card-header.bg-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%) !important;
+}
+
+.participants-page .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Status-specific badge colors */
+.participants-page .badge-success {
+    background-color: #28a745 !important;
+}
+
+.participants-page .badge-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.participants-page .badge-danger {
+    background-color: #dc3545 !important;
+}
+
+.participants-page .badge-info {
+    background-color: #17a2b8 !important;
+}
+
+.participants-page .badge-primary {
+    background-color: #007bff !important;
+}
+
+.participants-page .badge-secondary {
+    background-color: #6c757d !important;
+}
+
+.participants-page .badge-dark {
+    background-color: #343a40 !important;
+}
+
+/* Responsive adjustments for participants page */
+@media (max-width: 768px) {
+    .participants-page .info-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .participants-page .course-info {
+        padding: 1rem !important;
+    }
 }
