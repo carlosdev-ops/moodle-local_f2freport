@@ -40,6 +40,7 @@ $string['coursefilterhelp_help'] = 'Entrez plusieurs termes de recherche de cour
 <li>Chaque terme sera recherché indépendamment</li>
 </ul>';
 $string['futureonly'] = 'Afficher seulement les sessions à venir';
+$string['includewaitlist'] = 'Inclure les listes d\'attente (sessions sans date)';
 $string['filter'] = 'Filtrer';
 $string['reset'] = 'Réinitialiser';
 $string['city'] = 'Ville';

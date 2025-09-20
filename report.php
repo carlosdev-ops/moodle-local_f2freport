@@ -46,6 +46,7 @@ $coursetext    = optional_param('coursetext', '', PARAM_TEXT);
 $datefrom      = optional_param('datefrom', '', PARAM_RAW_TRIMMED);
 $dateto        = optional_param('dateto', '', PARAM_RAW_TRIMMED);
 $upcomingonly  = optional_param('futureonly', 0, PARAM_BOOL);
+$includewaitlist = optional_param('includewaitlist', 0, PARAM_BOOL);
 
 // Parse dates into timestamps.
 $startts = 0;
@@ -100,6 +101,7 @@ $filters = [
     'coursetext' => $coursetext,
     'startts'  => $startts,
     'endts'    => $endts,
+    'includewaitlist' => $includewaitlist,
 ];
 
 $fieldids = $builder->get_field_ids();
@@ -117,6 +119,9 @@ if (!empty($dateto)) {
 }
 if ($upcomingonly) {
     $urlparams['futureonly'] = 1;
+}
+if ($includewaitlist) {
+    $urlparams['includewaitlist'] = 1;
 }
 $baseurl = new moodle_url('/local/f2freport/report.php', $urlparams);
 $table->define_baseurl($baseurl);
@@ -141,6 +146,7 @@ $templatectx = [
     'datefrom'       => $datefromvalue,
     'dateto'         => $datetovalue,
     'futureonly'     => (bool) $upcomingonly,
+    'includewaitlist' => (bool) $includewaitlist,
     'actionurl'      => $pageurl->out(),
     'sesskey'        => sesskey(),
     'tablehtml'      => $tablehtml,

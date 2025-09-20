@@ -36,6 +36,12 @@
             {{#str}}filter_upcoming, local_f2freport{{/str}}
           </label>
         </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="includewaitlist" name="includewaitlist" {{#includewaitlist}}checked{{/includewaitlist}}>
+          <label class="form-check-label" for="includewaitlist">
+            {{#str}}includewaitlist, local_f2freport{{/str}}
+          </label>
+        </div>
       </div>
 
       <div class="filter-actions">
@@ -60,7 +66,7 @@
   if (!form) form = document.querySelector('form.f2f-filter-form');
   if (!form) return;
 
-  const ids = ['coursetext','datefrom','dateto','futureonly'];
+  const ids = ['coursetext','datefrom','dateto','futureonly','includewaitlist'];
   let timer;
   const submitDebounced = () => {
     clearTimeout(timer);
@@ -106,11 +112,13 @@
       const sd = document.getElementById('datefrom');
       const ed = document.getElementById('dateto');
       const up = document.getElementById('futureonly');
+      const waitlist = document.getElementById('includewaitlist');
 
       if (course) course.value = '';
       if (sd) sd.value = '';
       if (ed) ed.value = '';
       if (up) up.checked = false;
+      if (waitlist) waitlist.checked = false;
 
       form.submit();
     });

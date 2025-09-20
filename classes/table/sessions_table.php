@@ -120,7 +120,7 @@ class sessions_table extends \table_sql {
      * @return string The formatted column content.
      */
     public function col_timestart($row): string {
-        if (!empty($row->timestart)) {
+        if (isset($row->timestart) && $row->timestart !== null && $row->timestart > 0) {
             return userdate((int)$row->timestart, get_string('strftimedatetime', 'langconfig'));
         }
         return get_string('notapplicable', 'local_f2freport');
@@ -133,7 +133,7 @@ class sessions_table extends \table_sql {
      * @return string The formatted column content.
      */
     public function col_timefinish($row): string {
-        if (!empty($row->timefinish)) {
+        if (isset($row->timefinish) && $row->timefinish !== null && $row->timefinish > 0) {
             return userdate((int)$row->timefinish, get_string('strftimedatetime', 'langconfig'));
         }
         return get_string('notapplicable', 'local_f2freport');

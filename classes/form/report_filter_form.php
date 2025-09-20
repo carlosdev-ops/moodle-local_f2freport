@@ -76,6 +76,15 @@ class report_filter_form extends \moodleform {
         $mform->setType('futureonly', PARAM_BOOL);
         $mform->setDefault('futureonly', 0);
 
+        // Include waitlist checkbox.
+        $mform->addElement(
+            'advcheckbox',
+            'includewaitlist',
+            get_string('includewaitlist', 'local_f2freport')
+        );
+        $mform->setType('includewaitlist', PARAM_BOOL);
+        $mform->setDefault('includewaitlist', 0);
+
         // Action buttons.
         $buttons = [];
         $buttons[] = $mform->createElement('submit', 'submitbutton', get_string('filter', 'local_f2freport'));

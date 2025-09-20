@@ -40,6 +40,7 @@ $string['coursefilterhelp_help'] = 'Enter multiple course search terms separated
 <li>Each term will be matched independently</li>
 </ul>';
 $string['futureonly'] = 'Show future sessions only';
+$string['includewaitlist'] = 'Include waitlists (sessions without dates)';
 $string['filter'] = 'Filter';
 $string['reset'] = 'Reset';
 $string['city'] = 'City';

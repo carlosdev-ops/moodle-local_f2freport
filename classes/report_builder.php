@@ -247,8 +247,16 @@ class report_builder {
             c.id AS courseid,
             c.fullname AS coursename,
             s.id AS sessionid,
-            {$timestartcol} AS timestart,
-            {$timefinishcol} AS timefinish,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0)
+                THEN {$timestartcol}
+                ELSE NULL
+            END AS timestart,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0)
+                THEN {$timefinishcol}
+                ELSE NULL
+            END AS timefinish,
             COALESCE(dcity.data,  :ns_city)   AS city,
             COALESCE(dvenue.data, :ns_venue)  AS venue,
             COALESCE(droom.data,  :ns_room)   AS room,
@@ -377,16 +385,46 @@ class report_builder {
             }
         }
 
-        // Apply start date filter.
-        if (!empty($filters['startts'])) {
-            $whereclauses[] = "{$timestartcol} >= :startts";
-            $params['startts'] = (int)$filters['startts'];
-        }
+        // Apply date filters, taking into account waitlist inclusion.
+        if (!empty($filters['includewaitlist'])) {
+            // When including waitlists, we include sessions with and without valid scheduled dates
+            $dateconditions = [];
 
-        // Apply end date filter.
-        if (!empty($filters['endts'])) {
-            $whereclauses[] = "{$timefinishcol} <= :endts";
-            $params['endts'] = (int)$filters['endts'];
+            // Always include sessions without valid scheduled dates (waitlists/sessions with NULL dates)
+            $dateconditions[] = "(NOT EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
+
+            // Add date range conditions for sessions WITH valid scheduled dates
+            if (!empty($filters['startts']) && !empty($filters['endts'])) {
+                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timestartcol} >= :startts AND {$timefinishcol} <= :endts)";
+                $params['startts'] = (int)$filters['startts'];
+                $params['endts'] = (int)$filters['endts'];
+            } else if (!empty($filters['startts'])) {
+                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timestartcol} >= :startts)";
+                $params['startts'] = (int)$filters['startts'];
+            } else if (!empty($filters['endts'])) {
+                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timefinishcol} <= :endts)";
+                $params['endts'] = (int)$filters['endts'];
+            } else {
+                // No date filters, include all sessions with valid scheduled dates too
+                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
+            }
+
+            $whereclauses[] = "(" . implode(' OR ', $dateconditions) . ")";
+        } else {
+            // Exclude sessions without valid scheduled dates (standard behavior) - only show sessions with valid dates
+            $whereclauses[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
+
+            // Apply start date filter.
+            if (!empty($filters['startts'])) {
+                $whereclauses[] = "{$timestartcol} >= :startts";
+                $params['startts'] = (int)$filters['startts'];
+            }
+
+            // Apply end date filter.
+            if (!empty($filters['endts'])) {
+                $whereclauses[] = "{$timefinishcol} <= :endts";
+                $params['endts'] = (int)$filters['endts'];
+            }
         }
 
         $where = implode(' AND ', $whereclauses);
