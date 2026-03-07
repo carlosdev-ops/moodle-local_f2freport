@@ -24,7 +24,7 @@
 
 namespace local_f2freport\tests;
 
-require_once(__DIR__ . '/../report_builder.php');
+defined('MOODLE_INTERNAL') || die();
 
 use local_f2freport\report_builder;
 

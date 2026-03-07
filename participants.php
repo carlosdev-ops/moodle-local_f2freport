@@ -59,7 +59,7 @@ $PAGE->set_title(get_string('participantstitle', 'local_f2freport', $session->co
 $PAGE->set_heading('');
 
 // Add custom CSS for participants page
-$PAGE->requires->css('/local/f2freport/styles.css');
+$PAGE->requires->css(new moodle_url('/local/f2freport/styles.css'));
 
 // Get participants grouped by status
 $participantsByStatus = participants_manager::get_participants_by_status($sessionid);

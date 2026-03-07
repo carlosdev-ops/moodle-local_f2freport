@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/f2freport/db" VERSION="20251206" COMMENT="XMLDB file for Moodle local/f2freport"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <!-- This plugin does not create any database tables. -->
+    <!-- It only displays data from mod_facetoface. -->
+    <!-- This file is kept for Moodle plugin standards compliance. -->
+  </TABLES>
+</XMLDB>

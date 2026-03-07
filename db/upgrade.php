@@ -15,32 +15,32 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Smoke test to validate Moodle's PHPUnit bootstrap.
+ * Upgrade script for the local_f2freport plugin.
  *
  * @package    local_f2freport
  * @copyright  2025 Gemini
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-namespace local_f2freport\tests;
 
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Smoke test for the f2freport plugin.
+ * Upgrade function for the local_f2freport plugin.
  *
- * @package    local_f2freport
- * @copyright  2025 Gemini
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @param int $oldversion The old version number.
+ * @return bool Always returns true.
  */
-final class smoke_test extends \advanced_testcase {
-    /**
-     * Test that the basics work.
-     *
-     * @covers \local_f2freport\report_builder
-     */
-    public function test_smoke(): void {
-        $this->resetAfterTest(true);
-        $this->assertTrue(true);
-    }
+function xmldb_local_f2freport_upgrade($oldversion) {
+    global $DB;
+
+    $dbman = $DB->get_manager();
+
+    // Add upgrade steps here as needed.
+    // Example:
+    // if ($oldversion < 2025091402) {
+    //     // Upgrade step for version 2025091402.
+    //     upgrade_plugin_savepoint(true, 2025091402, 'local', 'f2freport');
+    // }
+
+    return true;
 }

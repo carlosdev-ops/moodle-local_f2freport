@@ -39,6 +39,8 @@ $PAGE->set_url($pageurl);
 $PAGE->set_pagelayout('report');
 $PAGE->set_title(get_string('trainingreporttitle', 'local_f2freport'));
 $PAGE->set_heading(get_string('trainingreportheading', 'local_f2freport'));
+$PAGE->requires->css(new moodle_url('/local/f2freport/styles.css'));
+$PAGE->requires->js_call_amd('local_f2freport/filters_manager', 'init');
 
 // --- Filter parameters processing ---
 
