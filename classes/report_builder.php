@@ -310,10 +310,14 @@ class report_builder {
                     COUNT(DISTINCT CASE WHEN fss.statuscode IN (90, 100) THEN fsu.userid END) AS presentcount
                 FROM {facetoface_signups} fsu
                 JOIN (
-                    SELECT signupid, statuscode, ROW_NUMBER() OVER (PARTITION BY signupid ORDER BY id DESC) as rn
-                    FROM {facetoface_signups_status}
-                    WHERE superceded = 0
-                ) latest ON latest.signupid = fsu.id AND latest.rn = 1
+                    SELECT fss1.signupid, fss1.statuscode
+                    FROM {facetoface_signups_status} fss1
+                    WHERE fss1.superceded = 0
+                      AND fss1.id = (SELECT MAX(fss2.id)
+                                     FROM {facetoface_signups_status} fss2
+                                     WHERE fss2.signupid = fss1.signupid
+                                       AND fss2.superceded = 0)
+                ) latest ON latest.signupid = fsu.id
                 JOIN {facetoface_signups_status} fss ON fss.signupid = fsu.id AND fss.statuscode = latest.statuscode
                 GROUP BY fsu.sessionid
             ) counts ON counts.sessionid = s.id

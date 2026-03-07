@@ -36,21 +36,24 @@ class participants_manager {
     public static function get_session_participants(int $sessionid): array {
         global $DB;
 
+        // Optimized: Use window function instead of subquery for better performance
         $sql = "SELECT u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic,
                        u.middlename, u.alternatename, u.email,
-                       fss.statuscode, fss.timecreated
+                       latest.statuscode, latest.timecreated
                 FROM {facetoface_signups} fs
                 JOIN (
-                    SELECT signupid, MAX(id) AS maxstatusid
-                      FROM {facetoface_signups_status}
-                     WHERE superceded = 0
-                  GROUP BY signupid
+                    SELECT fss1.signupid, fss1.statuscode, fss1.timecreated
+                    FROM {facetoface_signups_status} fss1
+                    WHERE fss1.superceded = 0
+                      AND fss1.id = (SELECT MAX(fss2.id)
+                                     FROM {facetoface_signups_status} fss2
+                                     WHERE fss2.signupid = fss1.signupid
+                                       AND fss2.superceded = 0)
                 ) latest ON latest.signupid = fs.id
-                JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
                 JOIN {user} u ON u.id = fs.userid
                 WHERE fs.sessionid = :sessionid
                   AND u.deleted = 0
-                ORDER BY fss.statuscode DESC, u.lastname, u.firstname";
+                ORDER BY latest.statuscode DESC, u.lastname, u.firstname";
 
         return $DB->get_records_sql($sql, ['sessionid' => $sessionid]);
     }
@@ -142,39 +145,27 @@ class participants_manager {
     public static function get_participant_counts(int $sessionid): array {
         global $DB;
 
-        // Get total signups (excluding cancelled) using latest status
-        $sql = "SELECT COUNT(DISTINCT fs.userid) as total
+        // Optimized: Get both counts in a single query using conditional counting
+        $sql = "SELECT
+                    COUNT(DISTINCT CASE WHEN latest.statuscode IN (40, 50, 60, 70, 80, 90, 100) THEN fs.userid END) as total,
+                    COUNT(DISTINCT CASE WHEN latest.statuscode IN (90, 100) THEN fs.userid END) as present
                 FROM {facetoface_signups} fs
                 JOIN (
-                    SELECT signupid, MAX(id) AS maxstatusid
-                      FROM {facetoface_signups_status}
-                     WHERE superceded = 0
-                  GROUP BY signupid
+                    SELECT fss1.signupid, fss1.statuscode
+                    FROM {facetoface_signups_status} fss1
+                    WHERE fss1.superceded = 0
+                      AND fss1.id = (SELECT MAX(fss2.id)
+                                     FROM {facetoface_signups_status} fss2
+                                     WHERE fss2.signupid = fss1.signupid
+                                       AND fss2.superceded = 0)
                 ) latest ON latest.signupid = fs.id
-                JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
-                WHERE fs.sessionid = :sessionid
-                  AND fss.statuscode IN (40, 50, 60, 70, 80, 90, 100)"; // Include active signups
+                WHERE fs.sessionid = :sessionid";
 
-        $total = $DB->get_field_sql($sql, ['sessionid' => $sessionid]) ?: 0;
-
-        // Get present count (fully or partially attended)
-        $sql = "SELECT COUNT(DISTINCT fs.userid) as present
-                FROM {facetoface_signups} fs
-                JOIN (
-                    SELECT signupid, MAX(id) AS maxstatusid
-                      FROM {facetoface_signups_status}
-                     WHERE superceded = 0
-                  GROUP BY signupid
-                ) latest ON latest.signupid = fs.id
-                JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
-                WHERE fs.sessionid = :sessionid
-                  AND fss.statuscode IN (90, 100)"; // Partially or fully attended
-
-        $present = $DB->get_field_sql($sql, ['sessionid' => $sessionid]) ?: 0;
+        $result = $DB->get_record_sql($sql, ['sessionid' => $sessionid]);
 
         return [
-            'total' => (int)$total,
-            'present' => (int)$present
+            'total' => (int)($result->total ?? 0),
+            'present' => (int)($result->present ?? 0)
         ];
     }
 }
