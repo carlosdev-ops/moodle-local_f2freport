@@ -1,5 +1,35 @@
+# IDE
 .idea/
-*.log
+.vscode/
 *.swp
-.DS_Store
+*.swo
+*~
 
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node / NPM
+node_modules/
+npm-debug.log*
+
+# PHP / Composer
+vendor/
+composer.lock
+
+# AMD build artifacts (générés par Grunt — ne pas versionner)
+/amd/build/
+*.min.js.map
+
+# Couverture de tests
+/coverage/
+
+# Répertoires temporaires
+/temp/
+/tmp/
+
+# Fichiers de config locaux
+config.php
