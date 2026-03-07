@@ -27,16 +27,16 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'local_f2freport';
 
 // Plugin version: YYYYMMDDXX format.
-$plugin->version = 2025091405;
+$plugin->version = 2025120600;
 
 // Minimum Moodle version required.
-$plugin->requires = 2021051700; // Moodle 3.11.0.
+$plugin->requires = 2022112800; // Moodle 4.1 LTS+.
 
 // Plugin maturity level.
 $plugin->maturity = MATURITY_STABLE;
 
 // Release version (semantic format).
-$plugin->release = 'v1.1.2';
+$plugin->release = 'v1.2.0';
 
 // Dependencies.
 $plugin->dependencies = [

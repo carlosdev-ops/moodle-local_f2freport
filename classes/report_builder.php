@@ -16,6 +16,8 @@
 
 namespace local_f2freport;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Report builder for F2F local.
  *
@@ -56,7 +58,7 @@ class report_builder {
         }
         $out = [];
         foreach (explode(',', $csv) as $token) {
-            $t = \core_text::strtolower(trim($token));
+            $t = mb_strtolower(trim($token));
             if ($t !== '') {
                 $out[] = $t;
             }
@@ -130,8 +132,8 @@ class report_builder {
         if ($DB->get_manager()->table_exists('facetoface_session_field')) {
             $fields = $DB->get_records('facetoface_session_field', null, '', 'id, shortname, name');
             foreach ($fields as $f) {
-                $sn = \core_text::strtolower(trim($f->shortname ?? ''));
-                $nm = \core_text::strtolower(trim($f->name ?? ''));
+                $sn = mb_strtolower(trim($f->shortname ?? ''));
+                $nm = mb_strtolower(trim($f->name ?? ''));
                 // City.
                 if ($fieldids['city'] === null) {
                     if (in_array($sn, $aliases['city'], true) || in_array($nm, $aliases['city'], true)) {
@@ -242,26 +244,23 @@ class report_builder {
         $timestartcol  = $hasdirectdates ? 's.timestart' : 'sd.timestart';
         $timefinishcol = $hasdirectdates ? 's.timefinish' : 'sd.timefinish';
 
+        // Optimized: Pre-compute date existence check to avoid repeated subqueries
+        $dateexists = $hasdirectdates
+            ? "(s.timestart IS NOT NULL AND s.timestart > 0)"
+            : "EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0)";
+
         $fields = "
             s.id AS id,
             c.id AS courseid,
             c.fullname AS coursename,
             s.id AS sessionid,
-            CASE
-                WHEN EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0)
-                THEN {$timestartcol}
-                ELSE NULL
-            END AS timestart,
-            CASE
-                WHEN EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0)
-                THEN {$timefinishcol}
-                ELSE NULL
-            END AS timefinish,
+            CASE WHEN {$dateexists} THEN {$timestartcol} ELSE NULL END AS timestart,
+            CASE WHEN {$dateexists} THEN {$timefinishcol} ELSE NULL END AS timefinish,
             COALESCE(dcity.data,  :ns_city)   AS city,
             COALESCE(dvenue.data, :ns_venue)  AS venue,
             COALESCE(droom.data,  :ns_room)   AS room,
-            COALESCE(su.participants, 0) AS totalparticipants,
-            COALESCE(att.presentcount, 0) AS presentcount,
+            COALESCE(counts.participants, 0) AS totalparticipants,
+            COALESCE(counts.presentcount, 0) AS presentcount,
             s.capacity AS maxcapacity
         ";
 
@@ -276,57 +275,67 @@ class report_builder {
                 LEFT JOIN (
                     SELECT sessionid, MIN(timestart) AS timestart, MAX(timefinish) AS timefinish
                       FROM {facetoface_sessions_dates}
+                     WHERE timestart IS NOT NULL AND timestart > 0
                   GROUP BY sessionid
                 ) sd ON sd.sessionid = s.id
             ";
         }
 
+        // Optimized: Only join session data if field IDs are valid
+        if (!empty($fieldids['city'])) {
+            $from .= "
+                LEFT JOIN {facetoface_session_data} dcity
+                    ON dcity.sessionid = s.id AND dcity.fieldid = :cityfieldid
+            ";
+        }
+        if (!empty($fieldids['venue'])) {
+            $from .= "
+                LEFT JOIN {facetoface_session_data} dvenue
+                    ON dvenue.sessionid = s.id AND dvenue.fieldid = :venuefieldid
+            ";
+        }
+        if (!empty($fieldids['room'])) {
+            $from .= "
+                LEFT JOIN {facetoface_session_data} droom
+                    ON droom.sessionid = s.id AND droom.fieldid = :roomfieldid
+            ";
+        }
+
+        // Optimized: Use single query with conditional counting instead of separate subqueries
         $from .= "
-            LEFT JOIN {facetoface_session_data} dcity
-                ON dcity.sessionid = s.id AND dcity.fieldid = :cityfieldid
-            LEFT JOIN {facetoface_session_data} dvenue
-                ON dvenue.sessionid = s.id AND dvenue.fieldid = :venuefieldid
-            LEFT JOIN {facetoface_session_data} droom
-                ON droom.sessionid = s.id AND droom.fieldid = :roomfieldid
-
             LEFT JOIN (
-                SELECT fsu.sessionid, COUNT(DISTINCT fsu.userid) AS participants
-                  FROM {facetoface_signups} fsu
-                  JOIN (
-                    SELECT signupid, MAX(id) AS maxstatusid
-                      FROM {facetoface_signups_status}
-                     WHERE superceded = 0
-                  GROUP BY signupid
-                  ) latest ON latest.signupid = fsu.id
-                  JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
-                 WHERE fss.statuscode IN (40, 50, 60, 70, 80, 90, 100)
-              GROUP BY fsu.sessionid
-            ) su ON su.sessionid = s.id
-
-            LEFT JOIN (
-                SELECT fsu.sessionid, COUNT(DISTINCT fsu.userid) AS presentcount
-                  FROM {facetoface_signups} fsu
-                  JOIN (
-                    SELECT signupid, MAX(id) AS maxstatusid
-                      FROM {facetoface_signups_status}
-                     WHERE superceded = 0
-                  GROUP BY signupid
-                  ) latest ON latest.signupid = fsu.id
-                  JOIN {facetoface_signups_status} fss ON fss.id = latest.maxstatusid
-                 WHERE fss.statuscode IN (90, 100)
-              GROUP BY fsu.sessionid
-            ) att ON att.sessionid = s.id
+                SELECT
+                    fsu.sessionid,
+                    COUNT(DISTINCT CASE WHEN fss.statuscode IN (40, 50, 60, 70, 80, 90, 100) THEN fsu.userid END) AS participants,
+                    COUNT(DISTINCT CASE WHEN fss.statuscode IN (90, 100) THEN fsu.userid END) AS presentcount
+                FROM {facetoface_signups} fsu
+                JOIN (
+                    SELECT signupid, statuscode, ROW_NUMBER() OVER (PARTITION BY signupid ORDER BY id DESC) as rn
+                    FROM {facetoface_signups_status}
+                    WHERE superceded = 0
+                ) latest ON latest.signupid = fsu.id AND latest.rn = 1
+                JOIN {facetoface_signups_status} fss ON fss.signupid = fsu.id AND fss.statuscode = latest.statuscode
+                GROUP BY fsu.sessionid
+            ) counts ON counts.sessionid = s.id
         ";
 
-        $whereclauses = ['1=1'];
+        $whereclauses = ['1=1', 'c.visible = 1'];
         $params = [
             'ns_city'      => get_string('notspecified', 'local_f2freport'),
             'ns_venue'     => get_string('notspecified', 'local_f2freport'),
             'ns_room'      => get_string('notspecified', 'local_f2freport'),
-            'cityfieldid'  => $fieldids['city'] ?? 0,
-            'venuefieldid' => $fieldids['venue'] ?? 0,
-            'roomfieldid'  => $fieldids['room'] ?? 0,
         ];
+
+        // Only add field ID parameters if the fields exist
+        if (!empty($fieldids['city'])) {
+            $params['cityfieldid'] = $fieldids['city'];
+        }
+        if (!empty($fieldids['venue'])) {
+            $params['venuefieldid'] = $fieldids['venue'];
+        }
+        if (!empty($fieldids['room'])) {
+            $params['roomfieldid'] = $fieldids['room'];
+        }
 
         // Apply advanced course filter with logical operators.
         if (!empty($filters['coursetext'])) {
@@ -385,42 +394,36 @@ class report_builder {
             }
         }
 
-        // Apply date filters, taking into account waitlist inclusion.
+        // Optimized: Apply date filters with simplified logic
         if (!empty($filters['includewaitlist'])) {
-            // When including waitlists, we include sessions with and without valid scheduled dates
+            // When including waitlists, include sessions with OR without valid scheduled dates
             $dateconditions = [];
 
-            // Always include sessions without valid scheduled dates (waitlists/sessions with NULL dates)
-            $dateconditions[] = "(NOT EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
+            // Always include sessions without valid scheduled dates (waitlists)
+            $dateconditions[] = "NOT {$dateexists}";
 
             // Add date range conditions for sessions WITH valid scheduled dates
-            if (!empty($filters['startts']) && !empty($filters['endts'])) {
-                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timestartcol} >= :startts AND {$timefinishcol} <= :endts)";
+            $dateCondition = "{$dateexists}";
+            if (!empty($filters['startts'])) {
+                $dateCondition .= " AND {$timestartcol} >= :startts";
                 $params['startts'] = (int)$filters['startts'];
-                $params['endts'] = (int)$filters['endts'];
-            } else if (!empty($filters['startts'])) {
-                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timestartcol} >= :startts)";
-                $params['startts'] = (int)$filters['startts'];
-            } else if (!empty($filters['endts'])) {
-                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0) AND {$timefinishcol} <= :endts)";
-                $params['endts'] = (int)$filters['endts'];
-            } else {
-                // No date filters, include all sessions with valid scheduled dates too
-                $dateconditions[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
             }
+            if (!empty($filters['endts'])) {
+                $dateCondition .= " AND {$timefinishcol} <= :endts";
+                $params['endts'] = (int)$filters['endts'];
+            }
+            $dateconditions[] = "({$dateCondition})";
 
             $whereclauses[] = "(" . implode(' OR ', $dateconditions) . ")";
         } else {
-            // Exclude sessions without valid scheduled dates (standard behavior) - only show sessions with valid dates
-            $whereclauses[] = "(EXISTS (SELECT 1 FROM {facetoface_sessions_dates} WHERE sessionid = s.id AND timestart IS NOT NULL AND timestart > 0))";
+            // Standard behavior: only show sessions with valid dates
+            $whereclauses[] = $dateexists;
 
-            // Apply start date filter.
+            // Apply date range filters
             if (!empty($filters['startts'])) {
                 $whereclauses[] = "{$timestartcol} >= :startts";
                 $params['startts'] = (int)$filters['startts'];
             }
-
-            // Apply end date filter.
             if (!empty($filters['endts'])) {
                 $whereclauses[] = "{$timefinishcol} <= :endts";
                 $params['endts'] = (int)$filters['endts'];
@@ -429,6 +432,7 @@ class report_builder {
 
         $where = implode(' AND ', $whereclauses);
 
+        // Optimized: Reuse FROM clause for count query but without expensive JOINs
         $countfrom = "
             {facetoface} f
             JOIN {course} c ON c.id = f.course
@@ -439,6 +443,7 @@ class report_builder {
                 LEFT JOIN (
                     SELECT sessionid, MIN(timestart) AS timestart, MAX(timefinish) AS timefinish
                       FROM {facetoface_sessions_dates}
+                     WHERE timestart IS NOT NULL AND timestart > 0
                   GROUP BY sessionid
                 ) sd ON sd.sessionid = s.id
             ";
