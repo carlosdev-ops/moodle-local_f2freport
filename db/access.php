@@ -27,12 +27,14 @@ defined('MOODLE_INTERNAL') || die();
 $capabilities = [
 
     // Allows viewing the Face-to-face report (read-only).
-    'local/f2freport:viewreport' => [
+    'local/f2freport:view' => [
         'captype'      => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
         'riskbitmask'  => RISK_PERSONAL,
         'archetypes'   => [
-            'manager'       => CAP_ALLOW,
+            'manager'        => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'teacher'        => CAP_ALLOW,
         ],
         'clonepermissionsfrom' => 'moodle/site:viewreports',
     ],
