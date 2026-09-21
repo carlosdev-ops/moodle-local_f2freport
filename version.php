@@ -50,3 +50,5 @@ $plugin->dependencies = [
     // without forcing a specific version that might be incompatible.
     'mod_facetoface' => ANY_VERSION, // Accepts any version.
 ];
+
+// End of version.php configuration.
