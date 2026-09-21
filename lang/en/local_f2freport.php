@@ -61,6 +61,7 @@ $string['nosessions'] = 'No sessions to display with current filters.';
 $string['filters'] = 'Filters';
 $string['showingcount'] = 'Showing {$a} session(s)';
 $string['missingfields'] = 'Required custom fields (location/venue/room) were not found. Please check Face-to-face configuration.';
+$string['f2freport:view'] = 'View Face-to-face report';
 $string['f2freport:viewreport'] = 'View Face-to-face report';
 
 // New settings.
