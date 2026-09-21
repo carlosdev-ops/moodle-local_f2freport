@@ -1,4 +1,10 @@
 <?php
+/**
+ * Local F2F Report plugin version file.
+ *
+ * @package local_f2freport
+ */
+
 // This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
